@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import Swal from 'sweetalert2';
 import api from "../../services/api";
-import { ArrowLeft, Settings, Plus, Trash2, X, Save, Loader2, CheckSquare, Square } from 'lucide-react';
+import { ArrowLeft, Settings, Plus, Trash2, X, Loader2, CheckSquare, Square, List } from 'lucide-react';
 
 const METODE_OPTIONS = [
   { id: "IA01", name: "IA01 - Observasi Langsung" },
@@ -25,300 +25,324 @@ const Mapa02 = () => {
   const [masterData, setMasterData] = useState(null);
   const [mappings, setMappings] = useState([]);
   
-  // State Data Master untuk Dropdown
-  const [unitList, setUnitList] = useState([]);
-  const [kelompokList, setKelompokList] = useState([]);
+  // State untuk form Tambah Mapping (Menambahkan State Kelompok Pekerjaan)
+  const [units, setUnits] = useState([]);
+  const [kelompoks, setKelompoks] = useState([]);
+  const [selectedUnit, setSelectedUnit] = useState("");
+  const [selectedKelompok, setSelectedKelompok] = useState("");
 
-  // State Modal Mapping
-  const [showMappingModal, setShowMappingModal] = useState(false);
-  const [mappingForm, setMappingForm] = useState({ id_unit: '', id_kelompok: '' });
-  const [savingMapping, setSavingMapping] = useState(false);
-
-  // State Modal Metode
+  // State untuk modal Metode
   const [showMetodeModal, setShowMetodeModal] = useState(false);
-  const [selectedMapping, setSelectedMapping] = useState(null);
-  const [activeMetodes, setActiveMetodes] = useState([]); // List metode yang sudah dipilih
+  const [activeMapping, setActiveMapping] = useState(null);
+  const [currentMetodeList, setCurrentMetodeList] = useState([]);
   const [loadingMetode, setLoadingMetode] = useState(false);
 
-  // --- FETCH DATA AWAL ---
-  const fetchAllData = async () => {
-    setLoading(true);
+  useEffect(() => {
+    fetchDetail();
+    fetchMasterData();
+  }, [id]);
+
+  const fetchDetail = async () => {
     try {
-      // 1. Ambil Data Master MAPA
-      const resMapa = await api.get(`/admin/mapa/${id}`);
-      const mapaData = resMapa.data?.data || resMapa.data;
-      setMasterData(mapaData);
+      const masterRes = await api.get(`/admin/mapa/${id}`);
+      setMasterData(masterRes.data?.data || masterRes.data);
 
-      // 2. Ambil List Mapping MAPA-02
-      fetchMappings();
-
-      // 3. Ambil Semua Unit Kompetensi
-      const resUnit = await api.get('/admin/unit-kompetensi');
-      setUnitList(resUnit.data?.data || resUnit.data || []);
-
-      // 4. Ambil Kelompok Pekerjaan berdasarkan id_skema dari MAPA
-      if (mapaData && mapaData.id_skema) {
-        const resKelompok = await api.get(`/admin/kelompok-pekerjaan/skema/${mapaData.id_skema}`);
-        setKelompokList(resKelompok.data?.data || resKelompok.data || []);
-      }
-
+      const res = await api.get(`/admin/mapa02/mapping/${id}`);
+      setMappings(res.data?.data || res.data || []);
     } catch (error) {
       console.error(error);
-      Swal.fire({title: 'Gagal', text: 'Terjadi kesalahan saat memuat data', icon: 'error', confirmButtonColor: '#CC6B27'});
+      Swal.fire('Error', 'Gagal memuat data MAPA-02', 'error');
     } finally {
       setLoading(false);
     }
   };
 
-  const fetchMappings = async () => {
+  // Mengambil Data Master Unit & Master Kelompok Pekerjaan
+  const fetchMasterData = async () => {
     try {
-      const resMap = await api.get(`/admin/mapa02/mapping/${id}`);
-      setMappings(resMap.data?.data || resMap.data || []);
+      const unitRes = await api.get('/admin/unit-kompetensi');
+      setUnits(unitRes.data?.data || unitRes.data || []);
+
+      const kelRes = await api.get('/admin/kelompok-pekerjaan');
+      setKelompoks(kelRes.data?.data || kelRes.data || []);
     } catch (error) {
-      console.error("Gagal mengambil mapping:", error);
+      console.error("Gagal mengambil master data", error);
     }
   };
 
-  useEffect(() => {
-    fetchAllData();
-  }, [id]);
-
-  // --- HANDLERS MAPPING ---
-  const handleMappingChange = (e) => {
-    setMappingForm({ ...mappingForm, [e.target.name]: e.target.value });
-  };
-
-  const submitMapping = async (e) => {
-    e.preventDefault();
-    if (!mappingForm.id_unit || !mappingForm.id_kelompok) {
-      return Swal.fire({title: 'Peringatan', text: 'Harap lengkapi semua field', icon: 'warning', confirmButtonColor: '#CC6B27'});
+  const handleAddMapping = async () => {
+    // Validasi Kelompok Pekerjaan ditambahkan agar tidak bentrok dengan Backend
+    if (!selectedUnit || !selectedKelompok) {
+      return Swal.fire('Peringatan', 'Silakan pilih Unit Kompetensi & Kelompok Pekerjaan terlebih dahulu.', 'warning');
     }
 
-    setSavingMapping(true);
     try {
-      await api.post('/admin/mapa02/mapping', {
+      setLoading(true);
+      const payload = {
         id_mapa: id,
-        id_unit: mappingForm.id_unit,
-        id_kelompok: mappingForm.id_kelompok
-      });
-      Swal.fire({title: 'Berhasil', text: 'Mapping Unit ditambahkan', icon: 'success', confirmButtonColor: '#CC6B27'});
-      setShowMappingModal(false);
-      setMappingForm({ id_unit: '', id_kelompok: '' });
-      fetchMappings();
+        id_unit: selectedUnit,
+        id_kelompok: selectedKelompok
+      };
+
+      await api.post('/admin/mapa02/mapping', payload);
+      Swal.fire('Berhasil', 'Mapping Unit & Kelompok berhasil ditambahkan', 'success');
+      
+      setSelectedUnit("");
+      setSelectedKelompok("");
+      fetchDetail();
     } catch (error) {
-      Swal.fire({title: 'Gagal', text: error.response?.data?.message || 'Terjadi kesalahan', icon: 'error', confirmButtonColor: '#CC6B27'});
+      Swal.fire('Gagal', error.response?.data?.message || 'Gagal menambah mapping', 'error');
     } finally {
-      setSavingMapping(false);
+      setLoading(false);
     }
   };
 
-  const deleteMapping = async (id_mapping) => {
-    const result = await Swal.fire({
+  const handleDeleteMapping = async (id_mapping) => {
+    const confirm = await Swal.fire({
       title: 'Hapus Mapping?',
-      text: "Semua metode yang ada di mapping ini akan terhapus",
-      icon: 'warning', showCancelButton: true, confirmButtonColor: '#EF4444', cancelButtonColor: '#182D4A'
+      text: "Data beserta metode asesmennya akan terhapus!",
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonColor: '#d33',
+      confirmButtonText: 'Ya, hapus!'
     });
 
-    if (result.isConfirmed) {
+    if (confirm.isConfirmed) {
       try {
+        setLoading(true);
         await api.delete(`/admin/mapa02/mapping/${id_mapping}`);
-        Swal.fire({title: 'Terhapus', text: 'Mapping berhasil dihapus', icon: 'success', confirmButtonColor: '#CC6B27'});
-        fetchMappings();
+        Swal.fire('Terhapus', 'Mapping berhasil dihapus', 'success');
+        fetchDetail();
       } catch (error) {
-        Swal.fire({title: 'Gagal', text: 'Tidak bisa menghapus mapping', icon: 'error', confirmButtonColor: '#CC6B27'});
+        Swal.fire('Error', 'Gagal menghapus mapping', 'error');
+      } finally {
+        setLoading(false);
       }
     }
   };
 
-  // --- HANDLERS METODE ---
-  const openMetodeModal = async (mappingItem) => {
-    setSelectedMapping(mappingItem);
-    setShowMetodeModal(true);
+  // --- HANDLER MODAL METODE ---
+  const openMetodeModal = async (mapping) => {
+    setActiveMapping(mapping);
     setLoadingMetode(true);
+    setShowMetodeModal(true);
     try {
-      const res = await api.get(`/admin/mapa02/metode/${mappingItem.id_mapping}`);
-      setActiveMetodes(res.data?.data || res.data || []);
+      const res = await api.get(`/admin/mapa02/metode/${mapping.id_mapping}`);
+      setCurrentMetodeList(res.data?.data || res.data || []);
     } catch (error) {
-      setActiveMetodes([]);
+      console.error(error);
+      Swal.fire('Error', 'Gagal mengambil pengaturan metode', 'error');
     } finally {
       setLoadingMetode(false);
     }
   };
 
-  const toggleMetode = async (metodeCode) => {
-    // Cek apakah metode sudah ada di list aktif
-    const existing = activeMetodes.find(m => m.metode === metodeCode);
-
+  const toggleMetode = async (metode_id) => {
+    const isExist = currentMetodeList.find(m => m.metode === metode_id);
+    
     try {
-      if (existing) {
-        // Jika sudah ada, hapus dari database
-        await api.delete(`/admin/mapa02/metode/${existing.id_metode}`);
+      if (isExist) {
+        // Hapus metode jika di-uncheck
+        await api.delete(`/admin/mapa02/metode/${isExist.id_metode}`);
+        setCurrentMetodeList(prev => prev.filter(m => m.id_metode !== isExist.id_metode));
       } else {
-        // Jika belum ada, tambahkan ke database
-        await api.post('/admin/mapa02/metode', {
-          id_mapping: selectedMapping.id_mapping,
-          metode: metodeCode,
+        // Tambah metode jika di-check
+        const res = await api.post('/admin/mapa02/metode', {
+          id_mapping: activeMapping.id_mapping,
+          metode: metode_id,
           digunakan: true
         });
+        const newData = res.data?.data || res.data;
+        setCurrentMetodeList(prev => [...prev, newData]);
       }
-      
-      // Refresh list metode
-      const res = await api.get(`/admin/mapa02/metode/${selectedMapping.id_mapping}`);
-      setActiveMetodes(res.data?.data || res.data || []);
     } catch (error) {
-      Swal.fire({title: 'Gagal', text: 'Terjadi kesalahan sistem', icon: 'error', confirmButtonColor: '#CC6B27'});
+      Swal.fire('Gagal', 'Terjadi kesalahan saat mengubah metode', 'error');
     }
   };
 
-  if (loading) return <div className="flex justify-center items-center h-screen bg-[#FAFAFA]"><Loader2 className="animate-spin text-[#CC6B27]" size={50} /></div>;
+  if (loading) {
+    return (
+      <div className="flex justify-center items-center py-20">
+        <Loader2 className="animate-spin text-[#CC6B27]" size={40} />
+      </div>
+    );
+  }
 
   return (
-    <div className="p-6 md:p-8 bg-[#FAFAFA] min-h-screen flex flex-col gap-6">
-      
-      {/* Header Halaman */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div className="flex items-center gap-4">
-          <button onClick={() => navigate('/admin/asesi/mapa')} className="p-2 bg-white border border-[#071E3D]/10 rounded-lg hover:bg-[#CC6B27]/10 hover:text-[#CC6B27] text-[#182D4A] transition-colors shadow-sm">
-            <ArrowLeft size={20} />
+    <div className="p-6 bg-slate-50 min-h-screen">
+      {/* HEADER */}
+      <div className="bg-[#071E3D] rounded-2xl shadow-lg p-6 mb-6 text-white relative overflow-hidden">
+        <div className="absolute top-0 right-0 w-64 h-64 bg-white/5 rounded-full blur-3xl -translate-y-1/2 translate-x-1/3"></div>
+        <div className="relative z-10">
+          <button 
+            onClick={() => navigate('/admin/mapa')}
+            className="flex items-center gap-2 text-[#FAFAFA]/70 hover:text-white mb-4 transition-colors text-sm font-medium"
+          >
+            <ArrowLeft size={16} /> Kembali ke Data MAPA
           </button>
-          <div>
-            <h1 className="text-[22px] font-bold text-[#071E3D] m-0 mb-1 flex items-center gap-2">
-              <Settings size={24} className="text-[#CC6B27]"/> Mapping Matriks MAPA-02
-            </h1>
-            <p className="text-[14px] text-[#182D4A] m-0">
-              Skema: <span className="font-bold text-[#071E3D]">{masterData?.skema?.judul_skema || '-'}</span> (Versi: {masterData?.versi || '-'})
-            </p>
-          </div>
-        </div>
-        <button onClick={() => setShowMappingModal(true)} className="bg-[#CC6B27] text-white px-4 py-2 rounded-lg hover:bg-[#a8561f] shadow-sm transition-all font-bold flex items-center gap-2 text-[13px]">
-          <Plus size={18} /> Tambah Mapping Unit
-        </button>
-      </div>
-
-      {/* Tabel Mappings */}
-      <div className="bg-white rounded-xl shadow-sm border border-[#071E3D]/10 flex flex-col overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse min-w-max bg-white">
-            <thead className="bg-[#071E3D] text-[#FAFAFA] font-semibold text-[12px] uppercase tracking-wider border-b-4 border-[#CC6B27]">
-              <tr>
-                <th className="px-4 py-3.5 w-12 text-center">No</th>
-                <th className="px-4 py-3.5">Unit Kompetensi</th>
-                <th className="px-4 py-3.5">Kelompok Pekerjaan</th>
-                <th className="px-4 py-3.5 text-center">Metode Uji</th>
-                <th className="px-4 py-3.5 text-center w-32">Aksi</th>
-              </tr>
-            </thead>
-            <tbody>
-              {mappings.length === 0 ? (
-                <tr><td colSpan="5" className="text-center py-16 text-[#182D4A]/50 font-medium text-[14px]">Belum ada mapping unit untuk MAPA ini. Silakan tambah mapping.</td></tr>
-              ) : (
-                mappings.map((item, index) => (
-                  <tr key={item.id_mapping} className="border-b border-[#071E3D]/5 hover:bg-[#CC6B27]/5 transition-colors">
-                    <td className="px-4 py-4 text-center text-[#071E3D] text-[13.5px] font-semibold">{index + 1}</td>
-                    <td className="px-4 py-4">
-                      <div className="font-bold text-[#071E3D] text-[13.5px] max-w-sm truncate" title={item.unit_kompetensi?.judul_unit || '-'}>
-                        {item.unit_kompetensi?.judul_unit || '-'}
-                      </div>
-                      <div className="text-[12px] text-[#182D4A]/70 font-mono mt-0.5 font-medium">Kode: {item.unit_kompetensi?.kode_unit || '-'}</div>
-                    </td>
-                    <td className="px-4 py-4">
-                      <span className="px-3 py-1.5 bg-[#FAFAFA] text-[#071E3D] border border-[#071E3D]/10 rounded-md text-[12px] font-bold">
-                        {item.kelompok_pekerjaan?.nama_kelompok || `ID: ${item.id_kelompok}`}
-                      </span>
-                    </td>
-                    <td className="px-4 py-4 text-center">
-                      <button onClick={() => openMetodeModal(item)} className="px-4 py-2 bg-[#FAFAFA] text-[#071E3D] rounded-lg border border-[#071E3D]/20 hover:bg-[#071E3D]/10 hover:border-[#071E3D]/30 text-[12px] font-bold transition-all flex items-center justify-center gap-1.5 shadow-sm mx-auto w-max">
-                        <CheckSquare size={16} className="text-[#CC6B27]"/> Kelola Metode
-                      </button>
-                    </td>
-                    <td className="px-4 py-4 text-center">
-                      <button onClick={() => deleteMapping(item.id_mapping)} className="p-2 rounded-lg text-[#182D4A] hover:text-red-600 hover:bg-red-50 transition-colors" title="Hapus Mapping">
-                        <Trash2 size={18} />
-                      </button>
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
-      </div>
-
-      {/* =========================================
-          MODAL 1: TAMBAH MAPPING UNIT
-      ========================================= */}
-      {showMappingModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#071E3D]/40 backdrop-blur-sm p-4 animate-in fade-in duration-200">
-          <div className="bg-white rounded-xl shadow-2xl w-full max-w-lg overflow-hidden flex flex-col zoom-in-95">
-            <div className="px-6 py-4 border-b border-[#071E3D]/10 flex justify-between items-center bg-[#FAFAFA]">
-              <h3 className="text-[18px] font-bold text-[#071E3D] flex items-center gap-2 m-0"><Plus size={20} className="text-[#CC6B27]"/> Tambah Mapping</h3>
-              <button onClick={() => setShowMappingModal(false)} className="text-[#182D4A] hover:text-[#CC6B27] hover:bg-[#CC6B27]/10 p-1.5 rounded-lg transition-colors"><X size={20} /></button>
+          
+          <div className="flex items-center gap-4 mb-2">
+            <div className="bg-white/10 p-3 rounded-xl border border-white/20">
+              <Settings className="text-[#CC6B27]" size={28} />
             </div>
-            
-            <form onSubmit={submitMapping} className="p-6 space-y-5">
-              <div className="flex flex-col gap-1.5">
-                <label className="text-[13px] font-bold text-[#071E3D]">Unit Kompetensi <span className="text-red-500">*</span></label>
-                <select name="id_unit" value={mappingForm.id_unit} onChange={handleMappingChange} required className="w-full p-2.5 border border-[#071E3D]/20 rounded-lg text-[#071E3D] bg-[#FAFAFA] focus:bg-white focus:outline-none focus:border-[#CC6B27] focus:ring-2 focus:ring-[#CC6B27]/10 transition-all font-medium text-[13px] appearance-none">
-                  <option value="">-- Pilih Unit Kompetensi --</option>
-                  {unitList.map(unit => (
-                    <option key={unit.id_unit} value={unit.id_unit}>{unit.kode_unit} - {unit.judul_unit}</option>
-                  ))}
-                </select>
-              </div>
-
-              <div className="flex flex-col gap-1.5">
-                <label className="text-[13px] font-bold text-[#071E3D]">Kelompok Pekerjaan <span className="text-red-500">*</span></label>
-                <select name="id_kelompok" value={mappingForm.id_kelompok} onChange={handleMappingChange} required className="w-full p-2.5 border border-[#071E3D]/20 rounded-lg text-[#071E3D] bg-[#FAFAFA] focus:bg-white focus:outline-none focus:border-[#CC6B27] focus:ring-2 focus:ring-[#CC6B27]/10 transition-all font-medium text-[13px] appearance-none">
-                  <option value="">-- Pilih Kelompok Pekerjaan --</option>
-                  {kelompokList.map(kel => (
-                    <option key={kel.id_kelompok} value={kel.id_kelompok}>{kel.nama_kelompok}</option>
-                  ))}
-                </select>
-                {kelompokList.length === 0 && <span className="text-[12px] font-bold text-red-500 mt-1">Kelompok pekerjaan belum dibuat untuk skema ini.</span>}
-              </div>
-
-              <div className="pt-5 border-t border-[#071E3D]/10 mt-2 flex justify-end gap-3">
-                <button type="button" onClick={() => setShowMappingModal(false)} className="px-5 py-2.5 rounded-lg font-bold border border-[#071E3D]/20 text-[#182D4A] bg-white hover:bg-[#E2E8F0] transition-colors text-[13px]">Batal</button>
-                <button type="submit" disabled={savingMapping} className="px-5 py-2.5 rounded-lg font-bold bg-[#CC6B27] text-white hover:bg-[#a8561f] shadow-sm hover:shadow-md transition-all flex items-center gap-2 text-[13px] disabled:opacity-50">
-                  {savingMapping ? <Loader2 size={16} className="animate-spin"/> : <Save size={16}/>} Simpan
-                </button>
-              </div>
-            </form>
+            <div>
+              <h1 className="text-2xl font-black mb-1">Peta Instrumen Asesmen (MAPA-02)</h1>
+              <p className="text-[#FAFAFA]/70 text-sm">
+                Skema: {masterData?.skema?.nama_skema || "Memuat..."}
+              </p>
+            </div>
           </div>
         </div>
-      )}
+      </div>
 
-      {/* =========================================
-          MODAL 2: KELOLA METODE UJI
-      ========================================= */}
-      {showMetodeModal && selectedMapping && (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-[#071E3D]/40 backdrop-blur-sm p-4 animate-in fade-in duration-200">
-          <div className="bg-white rounded-xl shadow-2xl w-full max-w-2xl overflow-hidden flex flex-col max-h-[90vh] zoom-in-95">
-            <div className="px-6 py-4 border-b border-[#071E3D]/10 flex justify-between items-center bg-[#FAFAFA]">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        
+        {/* PANEL KIRI: TAMBAH MAPPING */}
+        <div className="lg:col-span-1">
+          <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 sticky top-6">
+            <h2 className="text-lg font-bold text-[#071E3D] mb-4 pb-3 border-b border-slate-100 flex items-center gap-2">
+              <Plus size={20} className="text-[#CC6B27]" /> Tambah Mapping Baru
+            </h2>
+            
+            <div className="space-y-4">
               <div>
-                <h3 className="text-[18px] font-bold text-[#071E3D] m-0 mb-0.5 flex items-center gap-2">
-                    <Settings size={20} className="text-[#CC6B27]"/> Pilih Metode Uji
-                </h3>
-                <p className="text-[12px] text-[#182D4A] font-bold m-0 ml-7">Unit: <span className="text-[#CC6B27]">{selectedMapping.unit_kompetensi?.judul_unit}</span></p>
+                <label className="block text-[13px] font-bold text-[#182D4A] mb-1.5">Unit Kompetensi</label>
+                <select 
+                  className="w-full p-2.5 border border-slate-200 rounded-lg text-sm focus:border-[#CC6B27] focus:ring-2 focus:ring-[#CC6B27]/10 outline-none transition-all"
+                  value={selectedUnit}
+                  onChange={(e) => setSelectedUnit(e.target.value)}
+                >
+                  <option value="">-- Pilih Unit Kompetensi --</option>
+                  {units.map(u => (
+                    <option key={u.id_unit} value={u.id_unit}>{u.kode_unit} - {u.judul_unit}</option>
+                  ))}
+                </select>
               </div>
-              <button onClick={() => setShowMetodeModal(false)} className="text-[#182D4A] hover:text-[#CC6B27] hover:bg-[#CC6B27]/10 p-1.5 rounded-lg transition-colors"><X size={20} /></button>
+
+              <div>
+                <label className="block text-[13px] font-bold text-[#182D4A] mb-1.5">Kelompok Pekerjaan</label>
+                <select 
+                  className="w-full p-2.5 border border-slate-200 rounded-lg text-sm focus:border-[#CC6B27] focus:ring-2 focus:ring-[#CC6B27]/10 outline-none transition-all"
+                  value={selectedKelompok}
+                  onChange={(e) => setSelectedKelompok(e.target.value)}
+                >
+                  <option value="">-- Pilih Kelompok Pekerjaan --</option>
+                  {kelompoks.map(k => (
+                    <option key={k.id_kelompok} value={k.id_kelompok}>{k.nama_kelompok}</option>
+                  ))}
+                </select>
+              </div>
+
+              <button 
+                onClick={handleAddMapping}
+                className="w-full py-2.5 bg-[#071E3D] hover:bg-[#182D4A] text-white rounded-lg text-sm font-bold flex items-center justify-center gap-2 transition-all mt-2"
+              >
+                <Plus size={16} /> Tambahkan Mapping
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {/* PANEL KANAN: LIST MAPPING */}
+        <div className="lg:col-span-2">
+          <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+            <div className="p-6 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
+              <h2 className="text-lg font-bold text-[#071E3D] flex items-center gap-2">
+                <List size={20} className="text-[#CC6B27]" /> Data Mapping & Metode Asesmen
+              </h2>
             </div>
             
-            <div className="flex-1 overflow-y-auto px-6 py-5 bg-white">
+            {mappings.length === 0 ? (
+              <div className="text-center py-20 text-slate-500">
+                Belum ada data mapping Unit Kompetensi dan Kelompok Pekerjaan.
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-left">
+                  <thead>
+                    <tr className="bg-slate-100 border-b border-slate-200">
+                      <th className="p-4 text-xs font-bold text-slate-500 uppercase w-12 text-center">No</th>
+                      <th className="p-4 text-xs font-bold text-slate-500 uppercase">Unit Kompetensi</th>
+                      <th className="p-4 text-xs font-bold text-slate-500 uppercase">Kelompok Pekerjaan</th>
+                      <th className="p-4 text-xs font-bold text-slate-500 uppercase text-center w-36">Aksi</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {mappings.map((map, index) => (
+                      <tr key={map.id_mapping} className="hover:bg-slate-50 transition-colors">
+                        <td className="p-4 text-sm text-center text-slate-500">{index + 1}</td>
+                        <td className="p-4">
+                          <div className="text-xs font-bold text-[#CC6B27] mb-1">{map.unit_kompetensi?.kode_unit}</div>
+                          <div className="text-sm font-medium text-[#071E3D] leading-tight">{map.unit_kompetensi?.judul_unit}</div>
+                        </td>
+                        <td className="p-4 text-sm font-medium text-slate-600">
+                          {map.kelompok_pekerjaan?.nama_kelompok || <span className="text-slate-400 italic">Belum diatur</span>}
+                        </td>
+                        <td className="p-4">
+                          <div className="flex flex-col gap-2">
+                            <button 
+                              onClick={() => openMetodeModal(map)}
+                              className="px-3 py-1.5 bg-[#071E3D]/5 hover:bg-[#071E3D]/10 text-[#071E3D] rounded-lg text-[12px] font-bold flex items-center justify-center gap-2 transition-colors border border-[#071E3D]/10"
+                            >
+                              <Settings size={14} /> Atur Metode
+                            </button>
+                            <button 
+                              onClick={() => handleDeleteMapping(map.id_mapping)}
+                              className="px-3 py-1.5 bg-red-50 hover:bg-red-100 text-red-600 rounded-lg text-[12px] font-bold flex items-center justify-center gap-2 transition-colors border border-red-100"
+                            >
+                              <Trash2 size={14} /> Hapus
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        </div>
+
+      </div>
+
+      {/* MODAL ATUR METODE */}
+      {showMetodeModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+          <div className="bg-white w-full max-w-2xl rounded-2xl shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-200 flex flex-col max-h-[90vh]">
+            <div className="bg-[#071E3D] p-5 flex justify-between items-center shrink-0">
+              <div>
+                <h2 className="text-white font-bold text-lg">Atur Metode Asesmen</h2>
+                <p className="text-white/60 text-xs mt-0.5">
+                  {activeMapping?.unit_kompetensi?.judul_unit}
+                </p>
+              </div>
+              <button onClick={() => setShowMetodeModal(false)} className="text-white/60 hover:text-white transition-colors">
+                <X size={24} />
+              </button>
+            </div>
+
+            <div className="p-6 overflow-y-auto custom-scrollbar bg-slate-50">
+              <div className="mb-5 text-sm text-blue-800 bg-blue-50 border border-blue-200 p-4 rounded-xl shadow-sm flex items-start gap-3">
+                <div className="mt-0.5"><Settings size={18} /></div>
+                <p>Tandai / Centang metode asesmen (<b>IA01 - IA09</b>) yang akan digunakan pada Unit Kompetensi dan Kelompok Pekerjaan ini.</p>
+              </div>
+
               {loadingMetode ? (
-                <div className="flex justify-center items-center h-40"><Loader2 className="animate-spin text-[#CC6B27]" size={40}/></div>
+                <div className="flex justify-center items-center py-10">
+                  <Loader2 className="animate-spin text-[#CC6B27]" size={32} />
+                </div>
               ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {METODE_OPTIONS.map(opt => {
-                    // Cek apakah metode ini aktif (sudah ada di database)
-                    const isActive = activeMetodes.find(m => m.metode === opt.id);
-                    
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  {METODE_OPTIONS.map((opt) => {
+                    const isActive = currentMetodeList.some(m => m.metode === opt.id);
                     return (
                       <div 
                         key={opt.id} 
                         onClick={() => toggleMetode(opt.id)}
                         className={`p-4 rounded-xl border-2 cursor-pointer flex items-center gap-3 transition-all select-none
-                          ${isActive ? 'border-[#CC6B27] bg-[#CC6B27]/5 shadow-sm' : 'border-[#071E3D]/10 bg-white hover:border-[#CC6B27]/50 hover:bg-[#FAFAFA]'}`}
+                          ${isActive 
+                            ? 'border-[#CC6B27] bg-[#CC6B27]/5 shadow-sm' 
+                            : 'border-slate-200 bg-white hover:border-[#CC6B27]/50 hover:bg-[#FAFAFA]'}`}
                       >
                         <div className={`${isActive ? 'text-[#CC6B27]' : 'text-[#182D4A]/30'}`}>
                           {isActive ? <CheckSquare size={24} /> : <Square size={24} />}
@@ -333,15 +357,18 @@ const Mapa02 = () => {
               )}
             </div>
 
-            <div className="mt-auto pt-4 border-t border-[#071E3D]/10 bg-[#FAFAFA] flex justify-end gap-3 px-6 pb-4">
-              <button type="button" onClick={() => setShowMetodeModal(false)} className="px-6 py-2.5 rounded-lg font-bold bg-[#CC6B27] text-white hover:bg-[#a8561f] shadow-sm hover:shadow-md transition-all text-[13px]">
-                Selesai
+            <div className="p-5 border-t border-slate-200 bg-white flex justify-end shrink-0">
+              <button 
+                type="button" 
+                onClick={() => setShowMetodeModal(false)} 
+                className="px-8 py-2.5 rounded-xl font-bold bg-[#CC6B27] text-white hover:bg-[#a8561f] shadow-md transition-all text-sm"
+              >
+                Selesai & Tutup
               </button>
             </div>
           </div>
         </div>
       )}
-
     </div>
   );
 };
