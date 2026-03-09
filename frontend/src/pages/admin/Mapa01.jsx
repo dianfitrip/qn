@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import Swal from 'sweetalert2';
 import api from "../../services/api";
-import { ArrowLeft, Save, Loader2, FileText, CheckCircle } from 'lucide-react';
+import { ArrowLeft, Save, Loader2, FileText } from 'lucide-react';
 
 const Mapa01 = () => {
   const { id } = useParams(); // Ambil ID MAPA dari URL
@@ -12,7 +12,7 @@ const Mapa01 = () => {
   const [saving, setSaving] = useState(false);
   const [masterData, setMasterData] = useState(null);
 
-  // State Form sesuai dengan ENUM di database
+  // State Form sesuai dengan ENUM di database mapa01.model.js
   const [formData, setFormData] = useState({
     profil_asesi: '',
     tujuan_asesmen: 'sertifikasi',
@@ -35,6 +35,7 @@ const Mapa01 = () => {
       const res = await api.get(`/admin/mapa01/${id}`);
       const m01Data = res.data?.data || res.data;
       
+      // Jika data ditemukan, masukkan ke form
       if (m01Data && Object.keys(m01Data).length > 0) {
         setFormData({
           profil_asesi: m01Data.profil_asesi || '',
@@ -45,7 +46,7 @@ const Mapa01 = () => {
         });
       }
     } catch (error) {
-      console.error(error);
+      console.error("Gagal memuat MAPA 01", error);
     } finally {
       setLoading(false);
     }
@@ -60,9 +61,10 @@ const Mapa01 = () => {
     e.preventDefault();
     setSaving(true);
     try {
+      // Pastikan id_mapa dikirim sebagai Integer
       const payload = {
         ...formData,
-        id_mapa: id // ID Master MAPA (Foreign Key)
+        id_mapa: parseInt(id) 
       };
       
       // Endpoint sesuai di admin.routes.js (POST /mapa01)
@@ -72,7 +74,9 @@ const Mapa01 = () => {
         title: 'Berhasil!',
         text: 'Dokumen MAPA-01 berhasil disimpan.',
         icon: 'success',
-        confirmButtonColor: '#CC6B27'
+        confirmButtonColor: '#CC6B27',
+        timer: 2000,
+        showConfirmButton: false
       }).then(() => {
         navigate('/admin/mapa');
       });
@@ -85,7 +89,7 @@ const Mapa01 = () => {
 
   if (loading) {
     return (
-      <div className="flex justify-center items-center py-20">
+      <div className="flex justify-center items-center py-20 min-h-screen bg-slate-50">
         <Loader2 className="animate-spin text-[#CC6B27]" size={40} />
       </div>
     );
@@ -111,7 +115,7 @@ const Mapa01 = () => {
             <div>
               <h1 className="text-2xl font-black mb-1">Perencanaan Aktivitas & Proses (MAPA-01)</h1>
               <p className="text-[#FAFAFA]/70 text-sm">
-                Skema: {masterData?.skema?.nama_skema || "Memuat..."}
+                Skema: {masterData?.skema?.nama_skema || masterData?.skema?.judul_skema || "Memuat..."}
               </p>
             </div>
           </div>

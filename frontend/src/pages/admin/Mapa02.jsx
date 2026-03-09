@@ -25,7 +25,7 @@ const Mapa02 = () => {
   const [masterData, setMasterData] = useState(null);
   const [mappings, setMappings] = useState([]);
   
-  // State untuk form Tambah Mapping (Menambahkan State Kelompok Pekerjaan)
+  // State untuk form Tambah Mapping
   const [units, setUnits] = useState([]);
   const [kelompoks, setKelompoks] = useState([]);
   const [selectedUnit, setSelectedUnit] = useState("");
@@ -50,14 +50,13 @@ const Mapa02 = () => {
       const res = await api.get(`/admin/mapa02/mapping/${id}`);
       setMappings(res.data?.data || res.data || []);
     } catch (error) {
-      console.error(error);
+      console.error("Error fetching MAPA-02 Details:", error);
       Swal.fire('Error', 'Gagal memuat data MAPA-02', 'error');
     } finally {
       setLoading(false);
     }
   };
 
-  // Mengambil Data Master Unit & Master Kelompok Pekerjaan
   const fetchMasterData = async () => {
     try {
       const unitRes = await api.get('/admin/unit-kompetensi');
@@ -66,12 +65,11 @@ const Mapa02 = () => {
       const kelRes = await api.get('/admin/kelompok-pekerjaan');
       setKelompoks(kelRes.data?.data || kelRes.data || []);
     } catch (error) {
-      console.error("Gagal mengambil master data", error);
+      console.error("Gagal mengambil master data Unit/Kelompok", error);
     }
   };
 
   const handleAddMapping = async () => {
-    // Validasi Kelompok Pekerjaan ditambahkan agar tidak bentrok dengan Backend
     if (!selectedUnit || !selectedKelompok) {
       return Swal.fire('Peringatan', 'Silakan pilih Unit Kompetensi & Kelompok Pekerjaan terlebih dahulu.', 'warning');
     }
@@ -79,13 +77,19 @@ const Mapa02 = () => {
     try {
       setLoading(true);
       const payload = {
-        id_mapa: id,
-        id_unit: selectedUnit,
-        id_kelompok: selectedKelompok
+        id_mapa: parseInt(id),
+        id_unit: parseInt(selectedUnit),
+        id_kelompok: parseInt(selectedKelompok)
       };
 
       await api.post('/admin/mapa02/mapping', payload);
-      Swal.fire('Berhasil', 'Mapping Unit & Kelompok berhasil ditambahkan', 'success');
+      Swal.fire({
+        icon: 'success',
+        title: 'Berhasil', 
+        text: 'Mapping Unit & Kelompok berhasil ditambahkan',
+        timer: 1500,
+        showConfirmButton: false
+      });
       
       setSelectedUnit("");
       setSelectedKelompok("");
@@ -111,7 +115,13 @@ const Mapa02 = () => {
       try {
         setLoading(true);
         await api.delete(`/admin/mapa02/mapping/${id_mapping}`);
-        Swal.fire('Terhapus', 'Mapping berhasil dihapus', 'success');
+        Swal.fire({
+          icon: 'success', 
+          title: 'Terhapus', 
+          text: 'Mapping berhasil dihapus',
+          timer: 1500,
+          showConfirmButton: false
+        });
         fetchDetail();
       } catch (error) {
         Swal.fire('Error', 'Gagal menghapus mapping', 'error');
@@ -132,6 +142,7 @@ const Mapa02 = () => {
     } catch (error) {
       console.error(error);
       Swal.fire('Error', 'Gagal mengambil pengaturan metode', 'error');
+      setShowMetodeModal(false);
     } finally {
       setLoadingMetode(false);
     }
@@ -162,7 +173,7 @@ const Mapa02 = () => {
 
   if (loading) {
     return (
-      <div className="flex justify-center items-center py-20">
+      <div className="flex justify-center items-center py-20 min-h-screen bg-slate-50">
         <Loader2 className="animate-spin text-[#CC6B27]" size={40} />
       </div>
     );
@@ -188,7 +199,7 @@ const Mapa02 = () => {
             <div>
               <h1 className="text-2xl font-black mb-1">Peta Instrumen Asesmen (MAPA-02)</h1>
               <p className="text-[#FAFAFA]/70 text-sm">
-                Skema: {masterData?.skema?.nama_skema || "Memuat..."}
+                Skema: {masterData?.skema?.nama_skema || masterData?.skema?.judul_skema || "Memuat..."}
               </p>
             </div>
           </div>
@@ -268,34 +279,40 @@ const Mapa02 = () => {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100">
-                    {mappings.map((map, index) => (
-                      <tr key={map.id_mapping} className="hover:bg-slate-50 transition-colors">
-                        <td className="p-4 text-sm text-center text-slate-500">{index + 1}</td>
-                        <td className="p-4">
-                          <div className="text-xs font-bold text-[#CC6B27] mb-1">{map.unit_kompetensi?.kode_unit}</div>
-                          <div className="text-sm font-medium text-[#071E3D] leading-tight">{map.unit_kompetensi?.judul_unit}</div>
-                        </td>
-                        <td className="p-4 text-sm font-medium text-slate-600">
-                          {map.kelompok_pekerjaan?.nama_kelompok || <span className="text-slate-400 italic">Belum diatur</span>}
-                        </td>
-                        <td className="p-4">
-                          <div className="flex flex-col gap-2">
-                            <button 
-                              onClick={() => openMetodeModal(map)}
-                              className="px-3 py-1.5 bg-[#071E3D]/5 hover:bg-[#071E3D]/10 text-[#071E3D] rounded-lg text-[12px] font-bold flex items-center justify-center gap-2 transition-colors border border-[#071E3D]/10"
-                            >
-                              <Settings size={14} /> Atur Metode
-                            </button>
-                            <button 
-                              onClick={() => handleDeleteMapping(map.id_mapping)}
-                              className="px-3 py-1.5 bg-red-50 hover:bg-red-100 text-red-600 rounded-lg text-[12px] font-bold flex items-center justify-center gap-2 transition-colors border border-red-100"
-                            >
-                              <Trash2 size={14} /> Hapus
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
+                    {mappings.map((map, index) => {
+                      // Mengatasi perbedaan alias response relasi Sequelize (bisa lowercase/uppercase)
+                      const unit = map.UnitKompetensi || map.unit_kompetensi || {};
+                      const kelompok = map.KelompokPekerjaan || map.kelompok_pekerjaan || {};
+
+                      return (
+                        <tr key={map.id_mapping} className="hover:bg-slate-50 transition-colors">
+                          <td className="p-4 text-sm text-center text-slate-500">{index + 1}</td>
+                          <td className="p-4">
+                            <div className="text-xs font-bold text-[#CC6B27] mb-1">{unit.kode_unit || '-'}</div>
+                            <div className="text-sm font-medium text-[#071E3D] leading-tight">{unit.judul_unit || 'Memuat unit...'}</div>
+                          </td>
+                          <td className="p-4 text-sm font-medium text-slate-600">
+                            {kelompok.nama_kelompok || <span className="text-slate-400 italic">Belum diatur</span>}
+                          </td>
+                          <td className="p-4">
+                            <div className="flex flex-col gap-2">
+                              <button 
+                                onClick={() => openMetodeModal(map)}
+                                className="px-3 py-1.5 bg-[#071E3D]/5 hover:bg-[#071E3D]/10 text-[#071E3D] rounded-lg text-[12px] font-bold flex items-center justify-center gap-2 transition-colors border border-[#071E3D]/10"
+                              >
+                                <Settings size={14} /> Atur Metode
+                              </button>
+                              <button 
+                                onClick={() => handleDeleteMapping(map.id_mapping)}
+                                className="px-3 py-1.5 bg-red-50 hover:bg-red-100 text-red-600 rounded-lg text-[12px] font-bold flex items-center justify-center gap-2 transition-colors border border-red-100"
+                              >
+                                <Trash2 size={14} /> Hapus
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>
@@ -307,13 +324,13 @@ const Mapa02 = () => {
 
       {/* MODAL ATUR METODE */}
       {showMetodeModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
           <div className="bg-white w-full max-w-2xl rounded-2xl shadow-2xl overflow-hidden animate-in fade-in zoom-in duration-200 flex flex-col max-h-[90vh]">
             <div className="bg-[#071E3D] p-5 flex justify-between items-center shrink-0">
               <div>
                 <h2 className="text-white font-bold text-lg">Atur Metode Asesmen</h2>
                 <p className="text-white/60 text-xs mt-0.5">
-                  {activeMapping?.unit_kompetensi?.judul_unit}
+                  {activeMapping?.UnitKompetensi?.judul_unit || activeMapping?.unit_kompetensi?.judul_unit || "Memuat Unit..."}
                 </p>
               </div>
               <button onClick={() => setShowMetodeModal(false)} className="text-white/60 hover:text-white transition-colors">
