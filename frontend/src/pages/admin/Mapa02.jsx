@@ -57,8 +57,16 @@ const Mapa02 = () => {
         const dataMapa = resMapa.data?.data || resMapa.data;
         setMasterData(dataMapa);
         
-        // Ambil id_skema dari data MAPA (sesuaikan dengan struktur response backend Anda)
-        idSkema = dataMapa?.id_skema || dataMapa?.Skema?.id_skema || dataMapa?.Skema?.id;
+        console.log("1. Data MAPA dari API:", dataMapa);
+        
+        // Ambil id_skema. Mencakup berbagai kemungkinan struktur JSON dari backend
+        idSkema = dataMapa?.id_skema || 
+                  dataMapa?.skema_id || 
+                  dataMapa?.Skema?.id_skema || 
+                  dataMapa?.Skema?.id || 
+                  dataMapa?.skema?.id;
+
+        console.log("2. ID Skema yang terdeteksi:", idSkema);
       } catch (e) {
         console.error("Gagal load info MAPA:", e);
       }
@@ -69,19 +77,22 @@ const Mapa02 = () => {
       if (!Array.isArray(mappingData) && mappingData.rows) mappingData = mappingData.rows;
       setListMapping(Array.isArray(mappingData) ? mappingData : []);
 
-      // 3. Ambil Dropdown Kelompok Pekerjaan (PERBAIKAN UTAMA)
+      // 3. Ambil Dropdown Kelompok Pekerjaan (Menggunakan Model Baru)
       if (idSkema) {
         try {
           const resPekerjaan = await api.get(`/admin/kelompok-pekerjaan/skema/${idSkema}`);
+          console.log("3. Response API Kelompok Pekerjaan:", resPekerjaan.data);
+
           let pekerjaandata = resPekerjaan.data?.data || resPekerjaan.data || [];
           if (!Array.isArray(pekerjaandata) && pekerjaandata.rows) pekerjaandata = pekerjaandata.rows;
+          
           setListKelompokPekerjaan(Array.isArray(pekerjaandata) ? pekerjaandata : []);
         } catch (e) {
           console.error("Gagal load kelompok pekerjaan:", e);
           setListKelompokPekerjaan([]);
         }
       } else {
-        console.warn("id_skema tidak ditemukan, tidak bisa memuat kelompok pekerjaan");
+        console.warn("Peringatan: id_skema kosong, request Kelompok Pekerjaan dibatalkan.");
         setListKelompokPekerjaan([]);
       }
 
@@ -159,11 +170,9 @@ const Mapa02 = () => {
     setActiveMappingId(id_mapping);
     setShowMetodeModal(true);
     
-    // Fetch metode yang sudah dipilih untuk mapping ini
     try {
       const res = await api.get(`/admin/mapa02/metode/${id_mapping}`);
       const metodes = res.data?.data || res.data || [];
-      // Simpan hanya string nama metodenya (contoh: ["IA01", "IA03"])
       setActiveMetodes(metodes.map(m => m.metode)); 
     } catch (error) {
       console.error("Gagal memuat metode:", error);
@@ -176,16 +185,8 @@ const Mapa02 = () => {
     
     try {
       if (isCurrentlyActive) {
-        // HAPUS Metode (Kita perlu mencari ID metodenya dulu dari backend, 
-        // atau jika API mendukung delete by metode_code + id_mapping)
-        // Note: Untuk simplifikasi dan jika backend hanya terima id_metode, 
-        // disarankan refresh data di handleOpenMetode setiap kali toggle.
-        
-        // Panggil API Tambah/Hapus sesuai backend kamu
-        // Untuk amannya, kita asumsikan backend menghapus via trigger atau kita ambil list ulang:
-        Swal.fire('Info', 'Fitur hapus metode spesifik memerlukan penyesuaian API DELETE', 'info');
+        Swal.fire('Info', 'Fitur hapus metode spesifik memerlukan penyesuaian API DELETE backend', 'info');
       } else {
-        // TAMBAH Metode
         await api.post('/admin/mapa02/metode', {
           id_mapping: activeMappingId,
           metode: metodeCode,
@@ -273,7 +274,13 @@ const Mapa02 = () => {
                 {listMapping.map((item, index) => {
                   const unitName = item.UnitKompetensi?.judul_unit || item.unit?.judul_unit || '-';
                   const unitCode = item.UnitKompetensi?.kode_unit || item.unit?.kode_unit || '';
-                  const pekerjaanName = item.KelompokPekerjaan?.nama_pekerjaan || item.kelompok_pekerjaan?.nama_kelompok || item.kelompok?.nama_pekerjaan || '-';
+                  
+                  // PERBAIKAN: Menyesuaikan dengan kolom `nama_kelompok` dari model KelompokPekerjaan
+                  const pekerjaanName = item.KelompokPekerjaan?.nama_kelompok || 
+                                        item.kelompok_pekerjaan?.nama_kelompok || 
+                                        item.KelompokPekerjaan?.nama_pekerjaan || 
+                                        item.kelompok?.nama_kelompok || 
+                                        '-';
 
                   return (
                     <tr key={item.id_mapping} className="hover:bg-slate-50 transition-colors">
@@ -362,8 +369,10 @@ const Mapa02 = () => {
                 >
                   <option value="">-- Pilih Pekerjaan / Kelompok --</option>
                   {listKelompokPekerjaan.map((item, index) => {
+                    // PERBAIKAN: Menyesuaikan dengan model id_kelompok dan nama_kelompok
                     const idKelompok = item.id_kelompok || item.id;
-                    const namaKelompok = item.nama_pekerjaan || item.nama_kelompok || item.pekerjaan || 'Tanpa Nama';
+                    const namaKelompok = item.nama_kelompok || item.nama_pekerjaan || item.pekerjaan || 'Tanpa Nama';
+                    
                     if(!idKelompok) return null;
                     return (
                       <option key={index} value={idKelompok}>{namaKelompok}</option>
