@@ -74,7 +74,7 @@ export default function AdminRoutes() {
           <Route path="bank-soal-pg" element={<BankSoalPG />} />
           <Route path="surveillance" element={<Surveillance />} />
           <Route path="jadwal/:id_jadwal/asesor" element={<JadwalAsesor />} />
-          <Route path="/admin/skema/:id/biaya-uji" element={<BiayaUji />} />
+          <Route path="skema/:id/biaya-uji" element={<BiayaUji />} />
         </Route>
       </Routes>
     </ProtectedAdmin>
