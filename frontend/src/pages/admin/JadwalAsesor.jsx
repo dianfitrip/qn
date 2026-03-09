@@ -52,16 +52,21 @@ const JadwalAsesor = () => {
 
       // 2. Ambil Asesor yang sudah ditugaskan ke jadwal ini
       const resAssigned = await api.get(`/admin/jadwal-asesor/${id_jadwal}`);
-      setAssignedAsesors(resAssigned.data?.data || []);
+      let assignedData = resAssigned.data?.data || resAssigned.data || [];
+      // Antisipasi jika data dibungkus dalam .rows (pagination Sequelize)
+      if (!Array.isArray(assignedData) && assignedData.rows) assignedData = assignedData.rows;
+      setAssignedAsesors(Array.isArray(assignedData) ? assignedData : []);
 
       // 3. Ambil daftar semua Asesor yang tersedia (untuk dropdown form)
       const resAsesor = await api.get('/admin/asesor');
-      // Pastikan format response dari backend sesuai (array data)
-      setAvailableAsesors(resAsesor.data?.data || resAsesor.data || []);
+      let asesorData = resAsesor.data?.data || resAsesor.data || [];
+      // Antisipasi jika data dibungkus dalam .rows
+      if (!Array.isArray(asesorData) && asesorData.rows) asesorData = asesorData.rows;
+      setAvailableAsesors(Array.isArray(asesorData) ? asesorData : []);
 
     } catch (error) {
       console.error("Gagal mengambil data", error);
-      Swal.fire('Gagal', 'Terjadi kesalahan saat mengambil data', 'error');
+      Swal.fire('Gagal', 'Terjadi kesalahan saat memuat data', 'error');
     } finally {
       setLoading(false);
     }
@@ -85,7 +90,7 @@ const JadwalAsesor = () => {
         id_jadwal: parseInt(id_jadwal),
         id_user: parseInt(formData.id_user),
         jenis_tugas: formData.jenis_tugas,
-        catatan: formData.catatan
+        catatan: formData.catatan || ""
       };
 
       await api.post('/admin/jadwal-asesor', payload);
@@ -184,7 +189,7 @@ const JadwalAsesor = () => {
               <h1 className="text-2xl font-black mb-1">Manajemen Asesor Jadwal</h1>
               <p className="text-[#FAFAFA]/70 text-sm flex items-center gap-2">
                 <Calendar size={14} /> 
-                {jadwal?.nama_jadwal || 'Memuat Jadwal...'} 
+                {jadwal?.nama_kegiatan || jadwal?.nama_jadwal || 'Memuat Jadwal...'} 
               </p>
             </div>
           </div>
@@ -211,11 +216,20 @@ const JadwalAsesor = () => {
                   required
                 >
                   <option value="">-- Pilih Asesor --</option>
-                  {availableAsesors.map(asesor => (
-                    <option key={asesor.id_user || asesor.id} value={asesor.id_user || asesor.id}>
-                      {asesor.username || asesor.nama} - {asesor.email}
-                    </option>
-                  ))}
+                  {availableAsesors.map((asesor, index) => {
+                    // Pengecekan dinamis untuk berbagai skenario relasi tabel di Backend
+                    const idAsesor = asesor.id_user || asesor.id || asesor.user?.id_user || asesor.User?.id_user;
+                    const namaAsesor = asesor.nama_lengkap || asesor.username || asesor.nama || asesor.user?.username || asesor.User?.username || 'Tanpa Nama';
+                    const emailAsesor = asesor.email || asesor.user?.email || asesor.User?.email || '';
+
+                    if (!idAsesor) return null; // Abaikan jika ID tidak ditemukan
+
+                    return (
+                      <option key={index} value={idAsesor}>
+                        {namaAsesor} {emailAsesor ? `- ${emailAsesor}` : ''}
+                      </option>
+                    );
+                  })}
                 </select>
               </div>
 
@@ -283,46 +297,51 @@ const JadwalAsesor = () => {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100">
-                    {assignedAsesors.map((item, index) => (
-                      <tr key={index} className="hover:bg-slate-50 transition-colors">
-                        <td className="p-4">
-                          <div className="font-bold text-[#071E3D] text-sm">{item.asesor?.username || 'Memuat...'}</div>
-                          <div className="text-xs text-slate-500">{item.asesor?.email || '-'}</div>
-                          {item.catatan && (
-                            <div className="mt-1 text-[11px] text-blue-600 bg-blue-50 inline-block px-2 py-0.5 rounded border border-blue-100">
-                              Catatan: {item.catatan}
+                    {assignedAsesors.map((item, index) => {
+                      // Penyesuaian nama relasi
+                      const user = item.asesor || item.Asesor || {};
+                      
+                      return (
+                        <tr key={index} className="hover:bg-slate-50 transition-colors">
+                          <td className="p-4">
+                            <div className="font-bold text-[#071E3D] text-sm">{user.username || user.nama || 'Tanpa Nama'}</div>
+                            <div className="text-xs text-slate-500">{user.email || '-'}</div>
+                            {item.catatan && (
+                              <div className="mt-1 text-[11px] text-blue-600 bg-blue-50 inline-block px-2 py-0.5 rounded border border-blue-100">
+                                Catatan: {item.catatan}
+                              </div>
+                            )}
+                          </td>
+                          <td className="p-4 text-sm font-bold text-slate-700 uppercase">
+                            {item.jenis_tugas.replace('_', ' ')}
+                          </td>
+                          <td className="p-4">
+                            <span className={`px-2.5 py-1 rounded-full text-xs font-bold border flex w-max items-center gap-1.5
+                              ${item.status === 'aktif' ? 'bg-green-50 text-green-700 border-green-200' : 'bg-slate-100 text-slate-500 border-slate-200'}`}>
+                              {item.status === 'aktif' ? <CheckCircle size={12}/> : <XCircle size={12}/>}
+                              {item.status}
+                            </span>
+                          </td>
+                          <td className="p-4 text-center">
+                            <div className="flex flex-col sm:flex-row items-center justify-center gap-2">
+                              <button 
+                                onClick={() => handleToggleStatus(item.id_user, item.jenis_tugas, item.status)}
+                                className={`px-3 py-1.5 rounded-lg text-[12px] font-bold transition-colors border
+                                  ${item.status === 'aktif' ? 'bg-amber-50 text-amber-600 hover:bg-amber-100 border-amber-200' : 'bg-green-50 text-green-600 hover:bg-green-100 border-green-200'}`}
+                              >
+                                {item.status === 'aktif' ? 'Nonaktifkan' : 'Aktifkan'}
+                              </button>
+                              <button 
+                                onClick={() => handleDelete(item.id_user, item.jenis_tugas)}
+                                className="px-3 py-1.5 bg-red-50 hover:bg-red-100 text-red-600 rounded-lg text-[12px] font-bold transition-colors border border-red-100 flex items-center gap-1"
+                              >
+                                <Trash2 size={14} /> Hapus
+                              </button>
                             </div>
-                          )}
-                        </td>
-                        <td className="p-4 text-sm font-bold text-slate-700 uppercase">
-                          {item.jenis_tugas.replace('_', ' ')}
-                        </td>
-                        <td className="p-4">
-                          <span className={`px-2.5 py-1 rounded-full text-xs font-bold border flex w-max items-center gap-1.5
-                            ${item.status === 'aktif' ? 'bg-green-50 text-green-700 border-green-200' : 'bg-slate-100 text-slate-500 border-slate-200'}`}>
-                            {item.status === 'aktif' ? <CheckCircle size={12}/> : <XCircle size={12}/>}
-                            {item.status}
-                          </span>
-                        </td>
-                        <td className="p-4 text-center">
-                          <div className="flex flex-col sm:flex-row items-center justify-center gap-2">
-                            <button 
-                              onClick={() => handleToggleStatus(item.id_user, item.jenis_tugas, item.status)}
-                              className={`px-3 py-1.5 rounded-lg text-[12px] font-bold transition-colors border
-                                ${item.status === 'aktif' ? 'bg-amber-50 text-amber-600 hover:bg-amber-100 border-amber-200' : 'bg-green-50 text-green-600 hover:bg-green-100 border-green-200'}`}
-                            >
-                              {item.status === 'aktif' ? 'Nonaktifkan' : 'Aktifkan'}
-                            </button>
-                            <button 
-                              onClick={() => handleDelete(item.id_user, item.jenis_tugas)}
-                              className="px-3 py-1.5 bg-red-50 hover:bg-red-100 text-red-600 rounded-lg text-[12px] font-bold transition-colors border border-red-100 flex items-center gap-1"
-                            >
-                              <Trash2 size={14} /> Hapus
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
+                          </td>
+                        </tr>
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>
