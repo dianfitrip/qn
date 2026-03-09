@@ -38,17 +38,32 @@ const Mapa02 = () => {
   const [loadingMetode, setLoadingMetode] = useState(false);
 
   useEffect(() => {
-    fetchDetail();
-    fetchMasterData();
+    if (id) {
+      fetchDetail();
+    }
   }, [id]);
 
   const fetchDetail = async () => {
     try {
-      const masterRes = await api.get(`/admin/mapa/${id}`);
-      setMasterData(masterRes.data?.data || masterRes.data);
+      setLoading(true);
 
+      // 1. Ambil data Master MAPA
+      const masterRes = await api.get(`/admin/mapa/${id}`);
+      const dataMapa = masterRes.data?.data || masterRes.data;
+      setMasterData(dataMapa);
+
+      // 2. Ambil isi Mapping MAPA-02
       const res = await api.get(`/admin/mapa02/mapping/${id}`);
       setMappings(res.data?.data || res.data || []);
+
+      // 3. Ambil Master Kelompok Pekerjaan BERDASARKAN id_skema dari data MAPA
+      if (dataMapa?.id_skema) {
+        fetchMasterData(dataMapa.id_skema);
+      } else {
+        // Fallback jika tidak ada id_skema
+        const unitRes = await api.get('/admin/unit-kompetensi');
+        setUnits(unitRes.data?.data || unitRes.data || []);
+      }
     } catch (error) {
       console.error("Error fetching MAPA-02 Details:", error);
       Swal.fire('Error', 'Gagal memuat data MAPA-02', 'error');
@@ -57,12 +72,14 @@ const Mapa02 = () => {
     }
   };
 
-  const fetchMasterData = async () => {
+  const fetchMasterData = async (id_skema) => {
     try {
+      // Ambil Unit Kompetensi
       const unitRes = await api.get('/admin/unit-kompetensi');
       setUnits(unitRes.data?.data || unitRes.data || []);
 
-      const kelRes = await api.get('/admin/kelompok-pekerjaan');
+      // Ambil Kelompok Pekerjaan khusus untuk Skema ini
+      const kelRes = await api.get(`/admin/kelompok-pekerjaan/skema/${id_skema}`);
       setKelompoks(kelRes.data?.data || kelRes.data || []);
     } catch (error) {
       console.error("Gagal mengambil master data Unit/Kelompok", error);

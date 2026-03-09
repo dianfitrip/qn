@@ -21,7 +21,7 @@ const JadwalUji = () => {
   const [listSkema, setListSkema] = useState([]);
   const [listTuk, setListTuk] = useState([]);
 
-  // State Form
+  // State Form (Disesuaikan dengan field di jadwal.model.js)
   const initialFormState = {
     kode_jadwal: '',
     id_skema: '',
@@ -35,9 +35,9 @@ const JadwalUji = () => {
     tgl_akhir: '',
     jam: '',
     kuota: 0,
-    pelaksanaan_uji: 'luring', 
+    pelaksanaan_uji: 'luring', // ENUM: "luring","daring","hybrid","onsite"
     url_agenda: '',
-    status: 'draft'
+    status: 'draft' // ENUM: "draft","open","ongoing","selesai","arsip"
   };
   const [formData, setFormData] = useState(initialFormState);
 
@@ -47,25 +47,46 @@ const JadwalUji = () => {
     "Juli", "Agustus", "September", "Oktober", "November", "Desember"
   ];
 
-  // --- FETCH DATA ---
+  // --- FETCH DATA (SUDAH DIPISAH AGAR LEBIH AMAN) ---
   const fetchData = async () => {
     setLoading(true);
+    
+    // 1. Fetch Jadwal Utama
     try {
       const response = await api.get('/admin/jadwal');
-      setData(response.data.data || []);
-
-      const skemaRes = await api.get('/admin/skema');
-      setListSkema(skemaRes.data.data || []);
-
-      const tukRes = await api.get('/admin/tuk');
-      setListTuk(tukRes.data.data || []);
-
+      let jadwalData = response.data?.data || response.data || [];
+      if (!Array.isArray(jadwalData) && Array.isArray(jadwalData.data)) jadwalData = jadwalData.data;
+      else if (!Array.isArray(jadwalData) && Array.isArray(jadwalData.rows)) jadwalData = jadwalData.rows;
+      setData(Array.isArray(jadwalData) ? jadwalData : []);
     } catch (error) {
-      console.error("Error fetching data:", error);
-      Swal.fire('Error', 'Gagal memuat data', 'error');
-    } finally {
-      setLoading(false);
+      console.error("Error fetching Jadwal:", error);
+      Swal.fire('Error', 'Gagal memuat data jadwal utama', 'error');
     }
+
+    // 2. Fetch Skema (Dropdown)
+    try {
+      const skemaRes = await api.get('/admin/skema');
+      let skemaData = skemaRes.data?.data || skemaRes.data || [];
+      if (!Array.isArray(skemaData) && Array.isArray(skemaData.data)) skemaData = skemaData.data;
+      else if (!Array.isArray(skemaData) && Array.isArray(skemaData.rows)) skemaData = skemaData.rows;
+      setListSkema(Array.isArray(skemaData) ? skemaData : []);
+    } catch (error) {
+      console.error("Error fetching Skema:", error);
+    }
+
+    // 3. Fetch TUK (Dropdown)
+    try {
+      const tukRes = await api.get('/admin/tuk');
+      let tukData = tukRes.data?.data || tukRes.data || [];
+      if (!Array.isArray(tukData) && Array.isArray(tukData.data)) tukData = tukData.data;
+      else if (!Array.isArray(tukData) && Array.isArray(tukData.rows)) tukData = tukData.rows;
+      setListTuk(Array.isArray(tukData) ? tukData : []);
+    } catch (error) {
+      console.error("Error fetching TUK (Kemungkinan Error 500 dari Backend):", error);
+      // Disengaja tidak ada alert agar form jadwal tetap bisa terbuka
+    }
+
+    setLoading(false);
   };
 
   useEffect(() => {
@@ -81,6 +102,10 @@ const JadwalUji = () => {
   const handleEdit = (item) => {
     setIsEditMode(true);
     setCurrentId(item.id_jadwal);
+    
+    // Konversi format tanggal untuk input type="date"
+    const formatDate = (dateString) => dateString ? dateString.split('T')[0] : '';
+
     setFormData({
       kode_jadwal: item.kode_jadwal || '',
       id_skema: item.id_skema || '',
@@ -89,9 +114,9 @@ const JadwalUji = () => {
       tahun: item.tahun || new Date().getFullYear(),
       periode_bulan: item.periode_bulan || '',
       gelombang: item.gelombang || '',
-      tgl_pra_asesmen: item.tgl_pra_asesmen || '',
-      tgl_awal: item.tgl_awal || '',
-      tgl_akhir: item.tgl_akhir || '',
+      tgl_pra_asesmen: formatDate(item.tgl_pra_asesmen),
+      tgl_awal: formatDate(item.tgl_awal),
+      tgl_akhir: formatDate(item.tgl_akhir),
       jam: item.jam || '',
       kuota: item.kuota || 0,
       pelaksanaan_uji: item.pelaksanaan_uji || 'luring',
@@ -125,20 +150,27 @@ const JadwalUji = () => {
     }
   };
 
-  // --- FUNGSI BERSIH-BERSIH DATA (Fix Error 400) ---
+  // FUNGSI BERSIH-BERSIH DATA (Fix Error Sequelize Tipe Data)
   const sanitizeData = (data) => {
     const clean = { ...data };
     
+    // Pastikan field relasi berupa integer (Number)
     clean.id_skema = clean.id_skema ? parseInt(clean.id_skema) : null;
     clean.id_tuk = clean.id_tuk ? parseInt(clean.id_tuk) : null;
     clean.tahun = clean.tahun ? parseInt(clean.tahun) : null;
     clean.kuota = clean.kuota ? parseInt(clean.kuota) : 0;
 
+    // Jadikan null jika string kosong agar tidak error di Database
     ['tgl_pra_asesmen', 'tgl_awal', 'tgl_akhir', 'jam', 'kode_jadwal', 'url_agenda', 'periode_bulan', 'gelombang'].forEach(field => {
       if (!clean[field] || clean[field] === "") {
         clean[field] = null;
       }
     });
+
+    // Jika jam diisi tapi tidak ada detiknya, tambahkan :00 (Cth: "08:00" -> "08:00:00")
+    if (clean.jam && clean.jam.length === 5) {
+      clean.jam = `${clean.jam}:00`;
+    }
 
     return clean;
   };
@@ -146,6 +178,7 @@ const JadwalUji = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     
+    // Validasi Sesuai Controller (id_skema, id_tuk, nama_kegiatan Wajib)
     if (!formData.id_skema || !formData.id_tuk || !formData.nama_kegiatan) {
       Swal.fire('Peringatan', 'Nama Kegiatan, Skema, dan TUK wajib diisi!', 'warning');
       return;
@@ -170,7 +203,7 @@ const JadwalUji = () => {
     }
   };
 
-  // Filter
+  // Pencarian
   const filteredData = data.filter(item => 
     (item.nama_kegiatan && item.nama_kegiatan.toLowerCase().includes(searchTerm.toLowerCase())) ||
     (item.kode_jadwal && item.kode_jadwal.toLowerCase().includes(searchTerm.toLowerCase()))
@@ -251,83 +284,90 @@ const JadwalUji = () => {
                   </td>
                 </tr>
               ) : (
-                filteredData.map((item, index) => (
-                  <tr key={item.id_jadwal} className="border-b border-[#071E3D]/5 hover:bg-[#CC6B27]/5 transition-colors">
-                    <td className="py-4 px-4 text-center text-[#071E3D] text-[13.5px] font-semibold">{index + 1}</td>
-                    
-                    {/* Kegiatan */}
-                    <td className="py-4 px-4">
-                      <div className="font-mono text-[12px] font-bold text-[#CC6B27] mb-1">{item.kode_jadwal || 'TIDAK ADA KODE'}</div>
-                      <div className="font-bold text-[#071E3D] text-[13.5px] leading-snug">{item.nama_kegiatan}</div>
-                      <div className="text-[11px] text-[#182D4A]/70 font-medium mt-1">
-                        Gelombang: {item.gelombang || '-'} ({item.tahun})
-                      </div>
-                    </td>
-                    
-                    {/* Skema & TUK */}
-                    <td className="py-4 px-4">
-                      <div className="flex flex-col gap-2">
-                        <div className="flex items-start gap-1.5 text-[12px] font-medium text-[#182D4A]">
-                          <Layers size={14} className="text-[#071E3D] shrink-0 mt-0.5"/> 
-                          <span className="line-clamp-2" title={item.skema?.judul_skema}>
-                            {item.skema?.judul_skema || <span className="italic text-red-500">Skema Terhapus</span>}
+                filteredData.map((item, index) => {
+                  // Ambil nama Skema dan TUK (Aman dari perbedaan huruf besar/kecil di response)
+                  const skemaName = item.skema?.judul_skema || item.Skema?.judul_skema || <span className="italic text-red-500">Skema Terhapus</span>;
+                  const tukName = item.tuk?.nama_tuk || item.Tuk?.nama_tuk || item.TUK?.nama_tuk || <span className="italic text-red-500">TUK Terhapus</span>;
+                  
+                  return (
+                    <tr key={item.id_jadwal} className="border-b border-[#071E3D]/5 hover:bg-[#CC6B27]/5 transition-colors">
+                      <td className="py-4 px-4 text-center text-[#071E3D] text-[13.5px] font-semibold">{index + 1}</td>
+                      
+                      {/* Kegiatan */}
+                      <td className="py-4 px-4">
+                        <div className="font-mono text-[12px] font-bold text-[#CC6B27] mb-1">{item.kode_jadwal || 'TIDAK ADA KODE'}</div>
+                        <div className="font-bold text-[#071E3D] text-[13.5px] leading-snug">{item.nama_kegiatan}</div>
+                        <div className="text-[11px] text-[#182D4A]/70 font-medium mt-1">
+                          Gelombang: {item.gelombang || '-'} ({item.tahun || '-'})
+                        </div>
+                      </td>
+                      
+                      {/* Skema & TUK */}
+                      <td className="py-4 px-4">
+                        <div className="flex flex-col gap-2">
+                          <div className="flex items-start gap-1.5 text-[12px] font-medium text-[#182D4A]">
+                            <Layers size={14} className="text-[#071E3D] shrink-0 mt-0.5"/> 
+                            <span className="line-clamp-2" title={typeof skemaName === 'string' ? skemaName : ''}>
+                              {skemaName}
+                            </span>
+                          </div>
+                          <div className="flex items-start gap-1.5 text-[12px] font-medium text-[#182D4A]">
+                            <MapPin size={14} className="text-[#CC6B27] shrink-0 mt-0.5"/>
+                            <span className="line-clamp-2" title={typeof tukName === 'string' ? tukName : ''}>
+                              {tukName}
+                            </span>
+                          </div>
+                        </div>
+                      </td>
+                      
+                      {/* Waktu */}
+                      <td className="py-4 px-4">
+                        <div className="text-[12px] font-medium text-[#182D4A] flex items-center gap-1.5 mb-1.5">
+                          <Calendar size={14} className="text-[#071E3D]"/> 
+                          {item.tgl_awal ? item.tgl_awal.split('T')[0] : '?'} <span className="text-[#CC6B27] font-bold">s.d</span> {item.tgl_akhir ? item.tgl_akhir.split('T')[0] : '?'}
+                        </div>
+                        <div className="flex flex-wrap gap-2 items-center">
+                          <span className="text-[10px] font-bold bg-[#182D4A]/10 text-[#182D4A] px-2 py-0.5 rounded-md uppercase border border-[#182D4A]/20">
+                            {item.pelaksanaan_uji || 'Luring'}
+                          </span>
+                          <span className="text-[11px] font-bold text-[#CC6B27] flex items-center gap-1">
+                            <Clock size={12}/> {item.jam ? item.jam.slice(0,5) : '-'} WIB
                           </span>
                         </div>
-                        <div className="flex items-start gap-1.5 text-[12px] font-medium text-[#182D4A]">
-                          <MapPin size={14} className="text-[#CC6B27] shrink-0 mt-0.5"/>
-                          <span className="line-clamp-2" title={item.tuk?.nama_tuk}>
-                            {item.tuk?.nama_tuk || <span className="italic text-red-500">TUK Terhapus</span>}
-                          </span>
+                      </td>
+                      
+                      {/* Kuota */}
+                      <td className="py-4 px-4 text-center font-extrabold text-[#071E3D] text-[14px]">
+                        {item.kuota || 0}
+                      </td>
+                      
+                      {/* Status */}
+                      <td className="py-4 px-4 text-center">
+                        <span className={`inline-flex px-2.5 py-1 rounded-full text-[11px] font-bold border capitalize whitespace-nowrap
+                          ${item.status === 'open' ? 'bg-green-50 text-green-600 border-green-200' : 
+                            item.status === 'ongoing' ? 'bg-blue-50 text-blue-600 border-blue-200' :
+                            item.status === 'selesai' ? 'bg-gray-50 text-gray-600 border-gray-200' :
+                            item.status === 'arsip' ? 'bg-slate-100 text-slate-500 border-slate-300' :
+                            'bg-yellow-50 text-yellow-600 border-yellow-200' // Draft
+                          }`}>
+                          {item.status || 'Draft'}
+                        </span>
+                      </td>
+                      
+                      {/* Aksi */}
+                      <td className="py-4 px-4 text-center">
+                        <div className="flex justify-center gap-1.5">
+                          <button onClick={() => handleEdit(item)} className="p-1.5 text-[#CC6B27] bg-[#CC6B27]/10 rounded hover:bg-[#CC6B27] hover:text-white transition-colors" title="Edit">
+                            <Edit2 size={16} />
+                          </button>
+                          <button onClick={() => handleDelete(item.id_jadwal)} className="p-1.5 text-red-600 bg-red-50 rounded hover:bg-red-600 hover:text-white border border-red-100 transition-colors" title="Hapus">
+                            <Trash2 size={16} />
+                          </button>
                         </div>
-                      </div>
-                    </td>
-                    
-                    {/* Waktu */}
-                    <td className="py-4 px-4">
-                      <div className="text-[12px] font-medium text-[#182D4A] flex items-center gap-1.5 mb-1.5">
-                        <Calendar size={14} className="text-[#071E3D]"/> 
-                        {item.tgl_awal ? item.tgl_awal.split('T')[0] : '?'} <span className="text-[#CC6B27] font-bold">s.d</span> {item.tgl_akhir ? item.tgl_akhir.split('T')[0] : '?'}
-                      </div>
-                      <div className="flex flex-wrap gap-2 items-center">
-                        <span className="text-[10px] font-bold bg-[#182D4A]/10 text-[#182D4A] px-2 py-0.5 rounded-md uppercase border border-[#182D4A]/20">
-                          {item.pelaksanaan_uji}
-                        </span>
-                        <span className="text-[11px] font-bold text-[#CC6B27] flex items-center gap-1">
-                          <Clock size={12}/> {item.jam || '-'} WIB
-                        </span>
-                      </div>
-                    </td>
-                    
-                    <td className="py-4 px-4 text-center font-extrabold text-[#071E3D] text-[14px]">
-                      {item.kuota}
-                    </td>
-                    
-                    {/* Status */}
-                    <td className="py-4 px-4 text-center">
-                      <span className={`inline-flex px-2.5 py-1 rounded-full text-[11px] font-bold border capitalize whitespace-nowrap
-                        ${item.status === 'open' ? 'bg-green-50 text-green-600 border-green-200' : 
-                          item.status === 'ongoing' ? 'bg-blue-50 text-blue-600 border-blue-200' :
-                          item.status === 'selesai' ? 'bg-gray-50 text-gray-600 border-gray-200' :
-                          item.status === 'arsip' ? 'bg-slate-100 text-slate-500 border-slate-300' :
-                          'bg-yellow-50 text-yellow-600 border-yellow-200'
-                        }`}>
-                        {item.status}
-                      </span>
-                    </td>
-                    
-                    {/* Aksi */}
-                    <td className="py-4 px-4 text-center">
-                      <div className="flex justify-center gap-1.5">
-                        <button onClick={() => handleEdit(item)} className="p-1.5 text-[#CC6B27] bg-[#CC6B27]/10 rounded hover:bg-[#CC6B27] hover:text-white transition-colors" title="Edit">
-                          <Edit2 size={16} />
-                        </button>
-                        <button onClick={() => handleDelete(item.id_jadwal)} className="p-1.5 text-red-600 bg-red-50 rounded hover:bg-red-600 hover:text-white border border-red-100 transition-colors" title="Hapus">
-                          <Trash2 size={16} />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))
+                      </td>
+                    </tr>
+                  )
+                })
               )}
             </tbody>
           </table>
@@ -386,18 +426,31 @@ const JadwalUji = () => {
                       <label className={labelClass}>Pilih Skema Sertifikasi <span className="text-red-500">*</span></label>
                       <select name="id_skema" value={formData.id_skema} onChange={handleInputChange} className={inputClass} required>
                         <option value="">-- Pilih Skema --</option>
-                        {listSkema.map(s => (
-                          <option key={s.id_skema} value={s.id_skema}>{s.judul_skema} ({s.kode_skema})</option>
-                        ))}
+                        {listSkema.map(s => {
+                          // Antisipasi field ID dari backend
+                          const idSkema = s.id_skema || s.id;
+                          const judul = s.judul_skema || s.judul;
+                          const kode = s.kode_skema || s.kode;
+                          return (
+                            <option key={idSkema} value={idSkema}>{judul} ({kode})</option>
+                          );
+                        })}
                       </select>
                     </div>
                     <div>
                       <label className={labelClass}>Pilih TUK <span className="text-red-500">*</span></label>
                       <select name="id_tuk" value={formData.id_tuk} onChange={handleInputChange} className={inputClass} required>
                         <option value="">-- Pilih Tempat Uji --</option>
-                        {listTuk.map(t => (
-                          <option key={t.id_tuk} value={t.id_tuk}>{t.nama_tuk} ({t.jenis_tuk})</option>
-                        ))}
+                        {listTuk.map(t => {
+                          // Handle fleksibilitas nama kolom (bisa id_tuk atau id)
+                          const idTuk = t.id_tuk || t.id;
+                          const namaTuk = t.nama_tuk || t.nama;
+                          return (
+                            <option key={idTuk} value={idTuk}>
+                              {namaTuk} {t.jenis_tuk ? `(${t.jenis_tuk})` : ''}
+                            </option>
+                          );
+                        })}
                       </select>
                     </div>
                   </div>
@@ -411,19 +464,19 @@ const JadwalUji = () => {
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                      <div>
                       <label className={labelClass}>Tanggal Pra-Asesmen</label>
-                      <input type="date" name="tgl_pra_asesmen" value={formData.tgl_pra_asesmen ? formData.tgl_pra_asesmen.split('T')[0] : ''} onChange={handleInputChange} className={inputClass}/>
+                      <input type="date" name="tgl_pra_asesmen" value={formData.tgl_pra_asesmen} onChange={handleInputChange} className={inputClass}/>
                     </div>
                     <div>
                       <label className={labelClass}>Tanggal Awal Uji</label>
-                      <input type="date" name="tgl_awal" value={formData.tgl_awal ? formData.tgl_awal.split('T')[0] : ''} onChange={handleInputChange} className={inputClass}/>
+                      <input type="date" name="tgl_awal" value={formData.tgl_awal} onChange={handleInputChange} className={inputClass}/>
                     </div>
                     <div>
                       <label className={labelClass}>Tanggal Akhir Uji</label>
-                      <input type="date" name="tgl_akhir" value={formData.tgl_akhir ? formData.tgl_akhir.split('T')[0] : ''} onChange={handleInputChange} className={inputClass}/>
+                      <input type="date" name="tgl_akhir" value={formData.tgl_akhir} onChange={handleInputChange} className={inputClass}/>
                     </div>
                     <div>
                       <label className={labelClass}>Jam Pelaksanaan</label>
-                      <input type="time" name="jam" value={formData.jam || ''} onChange={handleInputChange} className={inputClass}/>
+                      <input type="time" name="jam" value={formData.jam} onChange={handleInputChange} className={inputClass}/>
                     </div>
                   </div>
                 </div>
