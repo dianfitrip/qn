@@ -20,6 +20,11 @@ import Pengaduan from "../pages/admin/Pengaduan";
 import ProfileAdmin from "../pages/admin/ProfileAdmin";
 import Banding from "../pages/admin/Banding";
 import Mapa from "../pages/admin/Mapa";
+// Tambahkan 4 baris ini di bawah import Mapa
+import Mapa01 from "../pages/admin/Mapa01";
+import Mapa02 from "../pages/admin/Mapa02";
+import BankSoal from "../pages/admin/BankSoal";
+import BankSoalPG from "../pages/admin/BankSoalPG";
 
 /* PROTECTED */
 const getUser = () => {
@@ -60,6 +65,10 @@ export default function AdminRoutes() {
           <Route path="profil-lsp" element={<ProfileAdmin />} />
           <Route path="banding" element={<Banding />} />
           <Route path="mapa" element={<Mapa />} />
+          <Route path="mapa01" element={<Mapa01 />} />
+          <Route path="mapa02" element={<Mapa02 />} />
+          <Route path="bank-soal" element={<BankSoal />} />
+          <Route path="bank-soal-pg" element={<BankSoalPG />} />
         </Route>
       </Routes>
     </ProtectedAdmin>

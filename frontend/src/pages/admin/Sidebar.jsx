@@ -35,11 +35,13 @@ const Sidebar = () => {
       const isPathActive = (pathsArray) => pathsArray.some(p => path.startsWith(p));
 
       newState.laporan = isPathActive(['/admin/laporan']);
-      newState.standar = isPathActive(['/admin/unit-kompetensi', '/admin/skkni']);
+      // Ditambahkan path bank-soal agar dropdown standar terbuka saat di halaman bank soal
+      newState.standar = isPathActive(['/admin/unit-kompetensi', '/admin/skkni', '/admin/bank-soal', '/admin/bank-soal-pg']);
       newState.biaya = isPathActive(['/admin/biaya']);
       newState.event = isPathActive(['/admin/jadwal']);
       newState.tuk = isPathActive(['/admin/tuk']);
-      newState.asesi = isPathActive(['/admin/asesi', '/admin/verifikasi-pendaftaran']);
+      // Ditambahkan path mapa agar dropdown asesi terbuka saat di halaman mapa
+      newState.asesi = isPathActive(['/admin/asesi', '/admin/verifikasi-pendaftaran', '/admin/mapa', '/admin/mapa01', '/admin/mapa02']);
       newState.asesor = isPathActive(['/admin/asesor']);
       newState.manajemen = isPathActive(['/admin/manajemen']);
       newState.pembayaran = isPathActive(['/admin/pembayaran']);
@@ -197,7 +199,7 @@ const Sidebar = () => {
           </div>
         </button>
 
-        <button className={getNavItemClass(isActive('/admin/unit-kompetensi') || isActive('/admin/skkni'))} onClick={() => toggleMenu('standar')}>
+        <button className={getNavItemClass(isActive('/admin/unit-kompetensi') || isActive('/admin/skkni') || isActive('/admin/bank-soal') || isActive('/admin/bank-soal-pg'))} onClick={() => toggleMenu('standar')}>
           <div className="flex items-center flex-1">
             <FaAward className="text-lg mr-3" />
             <span className="text-left">Standar Kompetensi</span>
@@ -294,7 +296,7 @@ const Sidebar = () => {
           </div>
         )}
 
-        <button className={getNavItemClass(isActive('/admin/asesi') || isActive('/admin/verifikasi-pendaftaran'))} onClick={() => toggleMenu('asesi')}>
+        <button className={getNavItemClass(isActive('/admin/asesi') || isActive('/admin/verifikasi-pendaftaran') || isActive('/admin/mapa') || isActive('/admin/mapa01') || isActive('/admin/mapa02'))} onClick={() => toggleMenu('asesi')}>
           <div className="flex items-center flex-1">
             <FaUserGraduate className="text-lg mr-3" />
             <span className="text-left">Data Asesi</span>
@@ -313,14 +315,14 @@ const Sidebar = () => {
               <span className={`w-1.5 h-1.5 rounded-full mr-3 ${isActive('/admin/verifikasi-pendaftaran') ? 'bg-[#CC6B27]' : 'bg-[#FAFAFA]/40'}`}></span>Pendaftar Baru
             </button>
             
-            <button className={getSubItemClass(isActive('/admin/asesi/mapa') && !location.pathname.includes('/m01') && !location.pathname.includes('/m02'))} onClick={() => handleNav('/admin/asesi/mapa')}>
-              <span className={`w-1.5 h-1.5 rounded-full mr-3 ${isActive('/admin/asesi/mapa') && !location.pathname.includes('/m01') && !location.pathname.includes('/m02') ? 'bg-[#CC6B27]' : 'bg-[#FAFAFA]/40'}`}></span>MAPA
+            <button className={getSubItemClass(isActive('/admin/mapa'))} onClick={() => handleNav('/admin/mapa')}>
+              <span className={`w-1.5 h-1.5 rounded-full mr-3 ${isActive('/admin/mapa') ? 'bg-[#CC6B27]' : 'bg-[#FAFAFA]/40'}`}></span>MAPA
             </button>
-            <button className={getSubItemClass(location.pathname.includes('/m01'))} onClick={() => handleNav('/admin/asesi/mapa')}>
-              <span className={`w-1.5 h-1.5 rounded-full mr-3 ${location.pathname.includes('/m01') ? 'bg-[#CC6B27]' : 'bg-[#FAFAFA]/40'}`}></span>MAPA-01
+            <button className={getSubItemClass(isActive('/admin/mapa01'))} onClick={() => handleNav('/admin/mapa01')}>
+              <span className={`w-1.5 h-1.5 rounded-full mr-3 ${isActive('/admin/mapa01') ? 'bg-[#CC6B27]' : 'bg-[#FAFAFA]/40'}`}></span>MAPA-01
             </button>
-            <button className={getSubItemClass(location.pathname.includes('/m02'))} onClick={() => handleNav('/admin/asesi/mapa')}>
-              <span className={`w-1.5 h-1.5 rounded-full mr-3 ${location.pathname.includes('/m02') ? 'bg-[#CC6B27]' : 'bg-[#FAFAFA]/40'}`}></span>MAPA-02
+            <button className={getSubItemClass(isActive('/admin/mapa02'))} onClick={() => handleNav('/admin/mapa02')}>
+              <span className={`w-1.5 h-1.5 rounded-full mr-3 ${isActive('/admin/mapa02') ? 'bg-[#CC6B27]' : 'bg-[#FAFAFA]/40'}`}></span>MAPA-02
             </button>
 
             <button className={getSubItemClass(isActive('/admin/asesi/ia01-observasi'))} onClick={() => handleNav('/admin/asesi/ia01-observasi')}>
