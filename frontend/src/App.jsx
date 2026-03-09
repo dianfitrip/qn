@@ -12,6 +12,7 @@ import MainLayout from "./layouts/MainLayout";
 import AppRoutes from "./routes/AppRoutes";
 import TukRoutes from "./routes/TukRoutes";
 import AsesiRoutes from "./routes/AsesiRoutes";
+import AdminRoutes from "./routes/AdminRoutes";
 
 /* ========================
    PROTECTED TUK
@@ -44,6 +45,11 @@ function ProtectedAsesi({ children }) {
 function App() {
   return (
     <Routes>
+
+      <Route
+        path="/admin/*"
+        element={<AdminRoutes />}
+      />
 
       {/* ROUTE TUK */}
       <Route

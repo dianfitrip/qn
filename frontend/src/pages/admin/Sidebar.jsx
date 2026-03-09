@@ -190,13 +190,6 @@ const Sidebar = () => {
         {/* MASTER DATA */}
         <SectionLabel>Master Data</SectionLabel>
 
-        <button className={getNavItemClass(isActive('/admin/profil-lsp'))} onClick={() => handleNav('/admin/profil-lsp')}>
-          <div className="flex items-center flex-1">
-            <FaUniversity className="text-lg mr-3" />
-            <span className="text-left">Profil LSP</span>
-          </div>
-        </button>
-
         <button className={getNavItemClass(isActive('/admin/dokumen-mutu'))} onClick={() => handleNav('/admin/dokumen-mutu')}>
           <div className="flex items-center flex-1">
             <FaBook className="text-lg mr-3" />
