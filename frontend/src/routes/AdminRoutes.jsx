@@ -67,8 +67,8 @@ export default function AdminRoutes() {
           <Route path="profil-lsp" element={<ProfileAdmin />} />
           <Route path="banding" element={<Banding />} />
           <Route path="mapa" element={<Mapa />} />
-          <Route path="mapa01" element={<Mapa01 />} />
-          <Route path="mapa02" element={<Mapa02 />} />
+          <Route path="mapa01/:id" element={<Mapa01 />} />
+          <Route path="mapa02/:id" element={<Mapa02 />} />
           <Route path="bank-soal" element={<BankSoal />} />
           <Route path="bank-soal-pg" element={<BankSoalPG />} />
           <Route path="surveillance" element={<Surveillance />} />
