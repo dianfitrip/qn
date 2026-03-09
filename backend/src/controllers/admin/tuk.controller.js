@@ -140,33 +140,48 @@ exports.importTukExcel = async (req, res) => {
 };
 
 exports.getAll = async (req, res) => {
-
   try {
+    const page = parseInt(req.query.page);
+    const limit = parseInt(req.query.limit);
+    const search = req.query.search || "";
 
-    const data = await Tuk.findAll({
-      include: [
-        {
-          model: User,
-          required: false
-        }
+    const whereClause = search ? {
+      [Op.or]: [
+        { kode_tuk: { [Op.like]: `%${search}%` } },
+        { nama_tuk: { [Op.like]: `%${search}%` } }
       ]
-    });
+    } : {};
 
-    return response.success(res, "List TUK", data);
+    // 1. Jika diakses dari Menu Data TUK (ada parameter page & limit)
+    if (page && limit) {
+      const offset = (page - 1) * limit;
+      const data = await Tuk.findAndCountAll({
+        where: whereClause,
+        limit: limit,
+        offset: offset,
+        order: [['id_tuk', 'DESC']] // HAPUS include User
+      });
+      return response.success(res, "List TUK Pagination", data);
+    }
+
+    // 2. Jika diakses dari Dropdown Jadwal Uji (tanpa parameter page)
+    const data = await Tuk.findAll({
+      where: whereClause,
+      order: [['nama_tuk', 'ASC']] // HAPUS include User
+    });
+    
+    return response.success(res, "List Semua TUK", data);
 
   } catch (err) {
-
+    console.error("Error Get All TUK:", err);
     return response.error(res, err.message);
   }
 };
 
 exports.getById = async (req, res) => {
-
   try {
-
-    const data = await Tuk.findByPk(req.params.id, {
-      include: User
-    });
+    // HAPUS include User di sini juga
+    const data = await Tuk.findByPk(req.params.id);
 
     if (!data) {
       return response.error(res, "TUK tidak ditemukan", 404);
@@ -175,7 +190,6 @@ exports.getById = async (req, res) => {
     return response.success(res, "Detail TUK", data);
 
   } catch (err) {
-
     return response.error(res, err.message);
   }
 };
