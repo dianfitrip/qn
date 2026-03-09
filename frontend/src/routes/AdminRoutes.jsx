@@ -27,7 +27,7 @@ import BankSoal from "../pages/admin/BankSoal";
 import BankSoalPG from "../pages/admin/BankSoalPG";
 import Surveillance from "../pages/admin/Surveillance";
 import JadwalAsesor from "../pages/admin/JadwalAsesor";
-import BiayaUji from './pages/admin/BiayaUji';
+import BiayaUji from "../pages/admin/BiayaUji";
 
 /* PROTECTED */
 const getUser = () => {

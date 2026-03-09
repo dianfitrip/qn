@@ -3,7 +3,7 @@ import Swal from 'sweetalert2';
 import api from "../../services/api";
 import { useNavigate } from 'react-router-dom';
 import { 
-  Search, Plus, Edit2, Trash2, X, Save, Loader2, FileText, Upload, BookOpen, DollarSign
+  Search, Plus, Edit2, Trash2, X, Save, Loader2, FileText, Upload, BookOpen
 } from 'lucide-react';
 
 const Skema = () => {
@@ -216,7 +216,7 @@ const Skema = () => {
                 <th className="py-3.5 px-4 bg-[#071E3D] text-[#FAFAFA] font-semibold text-[12px] uppercase tracking-wider border-b-4 border-[#CC6B27]">Judul Skema</th>
                 <th className="py-3.5 px-4 bg-[#071E3D] text-[#FAFAFA] font-semibold text-[12px] uppercase tracking-wider border-b-4 border-[#CC6B27] w-24 text-center">Status</th>
                 <th className="py-3.5 px-4 bg-[#071E3D] text-[#FAFAFA] font-semibold text-[12px] uppercase tracking-wider border-b-4 border-[#CC6B27] text-center w-56">Kelola Persyaratan</th>
-                <th className="py-3.5 px-4 bg-[#071E3D] text-[#FAFAFA] font-semibold text-[12px] uppercase tracking-wider border-b-4 border-[#CC6B27] text-center w-36">Aksi</th>
+                <th className="py-3.5 px-4 bg-[#071E3D] text-[#FAFAFA] font-semibold text-[12px] uppercase tracking-wider border-b-4 border-[#CC6B27] text-center w-40">Aksi</th>
               </tr>
             </thead>
             <tbody>
@@ -286,17 +286,29 @@ const Skema = () => {
                     </td>
 
                     <td className="py-4 px-4 text-center">
-                      <div className="flex justify-center gap-2">
-                        {/* TOMBOL BIAYA UJI BARU DITAMBAHKAN DI SINI */}
-                        <button onClick={() => navigate(`/admin/skema/${item.id_skema}/biaya-uji`)} className="inline-flex p-2 rounded-lg text-emerald-600 bg-emerald-50 hover:bg-emerald-600 hover:text-white transition-all shadow-sm border border-emerald-100 hover:border-transparent" title="Atur Biaya Uji">
-                          <DollarSign size={16} />
+                      <div className="flex items-center justify-center gap-2">
+                        {/* TOMBOL BIAYA UJI MENGGUNAKAN TEKS */}
+                        <button 
+                          onClick={() => navigate(`/admin/skema/${item.id_skema}/biaya-uji`)} 
+                          className="inline-flex items-center justify-center px-3 py-1.5 rounded-lg text-emerald-600 bg-emerald-50 hover:bg-emerald-600 hover:text-white transition-all shadow-sm border border-emerald-100 hover:border-transparent text-[11px] font-bold h-[34px]" 
+                          title="Atur Biaya Uji"
+                        >
+                          Biaya
                         </button>
 
-                        <button onClick={() => handleEdit(item)} className="inline-flex p-2 rounded-lg text-[#CC6B27] bg-[#CC6B27]/10 hover:bg-[#CC6B27] hover:text-white transition-all shadow-sm" title="Edit">
+                        <button 
+                          onClick={() => handleEdit(item)} 
+                          className="inline-flex items-center justify-center p-2 rounded-lg text-[#CC6B27] bg-[#CC6B27]/10 hover:bg-[#CC6B27] hover:text-white transition-all shadow-sm h-[34px] w-[34px]" 
+                          title="Edit"
+                        >
                           <Edit2 size={16} />
                         </button>
                         
-                        <button onClick={() => handleDelete(item.id_skema)} className="inline-flex p-2 rounded-lg text-red-600 bg-red-50 hover:bg-red-600 hover:text-white transition-all shadow-sm border border-red-100 hover:border-transparent" title="Hapus">
+                        <button 
+                          onClick={() => handleDelete(item.id_skema)} 
+                          className="inline-flex items-center justify-center p-2 rounded-lg text-red-600 bg-red-50 hover:bg-red-600 hover:text-white transition-all shadow-sm border border-red-100 hover:border-transparent h-[34px] w-[34px]" 
+                          title="Hapus"
+                        >
                           <Trash2 size={16} />
                         </button>
                       </div>
