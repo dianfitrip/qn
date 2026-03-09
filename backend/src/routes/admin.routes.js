@@ -119,12 +119,15 @@ router.get("/persyaratan", persyaratanController.getAll);
 router.get("/persyaratan/:id", persyaratanController.getById);
 router.put("/persyaratan/:id", persyaratanController.update);
 router.delete("/persyaratan/:id", persyaratanController.delete);
+router.post("/persyaratan/attach", persyaratanController.attachToSkema);
+router.delete("/persyaratan/detach/:id_skema/:id_persyaratan", persyaratanController.detachFromSkema);
 
 router.post("/persyaratan-tuk", persyaratanTukController.create);
 router.put("/persyaratan-tuk/:id", persyaratanTukController.update);
 router.get("/persyaratan-tuk", persyaratanTukController.getAll);
 router.post("/persyaratan-tuk/attach", persyaratanTukController.attachToSkema);
 router.delete( "/persyaratan-tuk/detach/:id_skema/:id_persyaratan_tuk", persyaratanTukController.detachFromSkema);
+
 
 router.post("/kelompok-pekerjaan", kelompokPekerjaanController.create);
 router.get( "/kelompok-pekerjaan/skema/:id_skema", kelompokPekerjaanController.getBySkema);

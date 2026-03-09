@@ -127,13 +127,15 @@ const Skema = () => {
     const dataToSend = new FormData();
 
     Object.keys(formData).forEach(key => {
-      if (key !== 'dokumen' && formData[key] !== null && formData[key] !== undefined) {
+      // PERBAIKAN: Abaikan 'dokumen' dan cegah pengiriman string kosong ('')
+      if (key !== 'dokumen' && formData[key] !== null && formData[key] !== undefined && formData[key] !== '') {
         dataToSend.append(key, formData[key]);
       }
     });
 
+    // PERBAIKAN: Ganti key menjadi 'file_dokumen' sesuai ekspektasi controller backend
     if (selectedFile) {
-      dataToSend.append('dokumen', selectedFile);
+      dataToSend.append('file_dokumen', selectedFile);
     }
 
     const config = {

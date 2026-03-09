@@ -1,4 +1,4 @@
-const { Persyaratan } = require("../../models");
+const { Persyaratan, SkemaPersyaratan } = require("../../models");
 const response = require("../../utils/response.util");
 
 exports.create = async (req, res) => {
@@ -68,5 +68,43 @@ exports.delete = async (req, res) => {
     response.success(res, "Persyaratan berhasil dihapus");
   } catch (err) {
     response.error(res, err.message);
+  }
+};
+
+exports.attachToSkema = async (req, res) => {
+  try {
+    const { id_skema, id_persyaratan, wajib } = req.body;
+
+    if (!id_skema || !id_persyaratan) {
+      return response.error(res, "ID Skema dan ID Persyaratan wajib diisi", 400);
+    }
+
+    const data = await SkemaPersyaratan.create({
+      id_skema,
+      id_persyaratan,
+      wajib: wajib !== undefined ? wajib : true
+    });
+
+    return response.success(res, "Persyaratan berhasil ditambahkan ke skema", data);
+  } catch (err) {
+    return response.error(res, err.message);
+  }
+};
+
+exports.detachFromSkema = async (req, res) => {
+  try {
+    const { id_skema, id_persyaratan } = req.params;
+
+    const deleted = await SkemaPersyaratan.destroy({
+      where: { id_skema, id_persyaratan }
+    });
+
+    if (!deleted) {
+      return response.error(res, "Relasi persyaratan tidak ditemukan", 404);
+    }
+
+    return response.success(res, "Persyaratan berhasil dilepas dari skema");
+  } catch (err) {
+    return response.error(res, err.message);
   }
 };
