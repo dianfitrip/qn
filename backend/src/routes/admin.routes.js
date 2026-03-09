@@ -103,10 +103,10 @@ router.get("/skkni", skkniController.getAll);
 router.get("/skkni/:id", skkniController.getById);
 router.delete("/skkni/:id", skkniController.delete);
 
-router.post("/skema", skemaController.create);
+router.post("/skema", upload, skemaController.create);
 router.get("/skema", skemaController.getAll);
 router.get("/skema/:id", skemaController.getDetail);
-router.put("/skema/:id", skemaController.update);
+router.put("/skema/:id", upload, skemaController.update);
 router.delete("/skema/:id", skemaController.delete);
 
 router.post("/biaya-uji", biayaUjiController.create);
@@ -186,5 +186,7 @@ router.post("/ia03-pertanyaan", ia03Controller.create);
 router.put("/ia03-pertanyaan/:id", ia03Controller.update);
 router.get("/ia03-pertanyaan/unit/:id_unit", ia03Controller.getByUnit);
 router.delete("/ia03-pertanyaan/:id", ia03Controller.delete);
+
+router.post("/admin/:id/reset-password", adminController.resetPassword);
 
 module.exports = router;

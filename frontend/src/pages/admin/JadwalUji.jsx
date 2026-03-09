@@ -1,16 +1,14 @@
 import React, { useState, useEffect } from 'react';
-// 1. Tambahkan useNavigate dari react-router-dom
 import { useNavigate } from 'react-router-dom';
 import Swal from 'sweetalert2';
 import api from "../../services/api";
 import { 
   Search, Plus, Edit2, Trash2, X, Save, 
   Calendar, Loader2, Clock, MapPin, Layers, Link as LinkIcon, CalendarDays, ClipboardList,
-  Users // 2. Tambahkan icon Users untuk tombol asesor
+  Users 
 } from 'lucide-react';
 
 const JadwalUji = () => {
-  // 3. Inisialisasi navigate
   const navigate = useNavigate();
 
   // --- STATE ---
@@ -41,9 +39,9 @@ const JadwalUji = () => {
     tgl_akhir: '',
     jam: '',
     kuota: 0,
-    pelaksanaan_uji: 'luring', // ENUM: "luring","daring","hybrid","onsite"
+    pelaksanaan_uji: 'luring', 
     url_agenda: '',
-    status: 'draft' // ENUM: "draft","open","ongoing","selesai","arsip"
+    status: 'draft' 
   };
   const [formData, setFormData] = useState(initialFormState);
 
@@ -88,7 +86,7 @@ const JadwalUji = () => {
       else if (!Array.isArray(tukData) && Array.isArray(tukData.rows)) tukData = tukData.rows;
       setListTuk(Array.isArray(tukData) ? tukData : []);
     } catch (error) {
-      console.error("Error fetching TUK (Kemungkinan Error 500 dari Backend):", error);
+      console.error("Error fetching TUK:", error);
     }
 
     setLoading(false);
@@ -347,7 +345,7 @@ const JadwalUji = () => {
                         </span>
                       </td>
                       
-                      {/* Aksi (SUDAH DITAMBAHKAN TOMBOL ASESOR) */}
+                      {/* Aksi */}
                       <td className="py-4 px-4 text-center">
                         <div className="flex justify-center gap-1.5">
                           {/* Tombol Atur Asesor */}
@@ -524,6 +522,8 @@ const JadwalUji = () => {
                         <option value="onsite">Onsite</option>
                       </select>
                     </div>
+                    
+                    {/* BAGIAN INI YANG SEBELUMNYA BERMASALAH KARENA TAG SELECT TIDAK TERTUTUP */}
                     <div>
                       <label className={labelClass}>Status Pendaftaran</label>
                       <select name="status" value={formData.status} onChange={handleInputChange} className={inputClass}>
@@ -534,6 +534,8 @@ const JadwalUji = () => {
                         <option value="arsip">Arsip</option>
                       </select>
                     </div>
+                    {/* ======================================================================= */}
+                    
                     <div>
                       <label className={labelClass}>URL Meeting / Group</label>
                       <input type="text" name="url_agenda" value={formData.url_agenda} onChange={handleInputChange} placeholder="https://zoom.us/..." className={inputClass}/>
