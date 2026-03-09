@@ -49,10 +49,16 @@ const Mapa02 = () => {
   const fetchAllData = async () => {
     setLoading(true);
     try {
+      let idSkema = null;
+
       // 1. Ambil Detail Master MAPA
       try {
         const resMapa = await api.get(`/admin/mapa/${id}`);
-        setMasterData(resMapa.data?.data || resMapa.data);
+        const dataMapa = resMapa.data?.data || resMapa.data;
+        setMasterData(dataMapa);
+        
+        // Ambil id_skema dari data MAPA (sesuaikan dengan struktur response backend Anda)
+        idSkema = dataMapa?.id_skema || dataMapa?.Skema?.id_skema || dataMapa?.Skema?.id;
       } catch (e) {
         console.error("Gagal load info MAPA:", e);
       }
@@ -64,10 +70,20 @@ const Mapa02 = () => {
       setListMapping(Array.isArray(mappingData) ? mappingData : []);
 
       // 3. Ambil Dropdown Kelompok Pekerjaan (PERBAIKAN UTAMA)
-      const resPekerjaan = await api.get('/admin/kelompok-pekerjaan');
-      let pekerjaandata = resPekerjaan.data?.data || resPekerjaan.data || [];
-      if (!Array.isArray(pekerjaandata) && pekerjaandata.rows) pekerjaandata = pekerjaandata.rows;
-      setListKelompokPekerjaan(Array.isArray(pekerjaandata) ? pekerjaandata : []);
+      if (idSkema) {
+        try {
+          const resPekerjaan = await api.get(`/admin/kelompok-pekerjaan/skema/${idSkema}`);
+          let pekerjaandata = resPekerjaan.data?.data || resPekerjaan.data || [];
+          if (!Array.isArray(pekerjaandata) && pekerjaandata.rows) pekerjaandata = pekerjaandata.rows;
+          setListKelompokPekerjaan(Array.isArray(pekerjaandata) ? pekerjaandata : []);
+        } catch (e) {
+          console.error("Gagal load kelompok pekerjaan:", e);
+          setListKelompokPekerjaan([]);
+        }
+      } else {
+        console.warn("id_skema tidak ditemukan, tidak bisa memuat kelompok pekerjaan");
+        setListKelompokPekerjaan([]);
+      }
 
       // 4. Ambil Dropdown Unit Kompetensi
       const resUnit = await api.get('/admin/unit-kompetensi');
