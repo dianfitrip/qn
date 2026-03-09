@@ -1,12 +1,18 @@
 import React, { useState, useEffect } from 'react';
+// 1. Tambahkan useNavigate dari react-router-dom
+import { useNavigate } from 'react-router-dom';
 import Swal from 'sweetalert2';
 import api from "../../services/api";
 import { 
   Search, Plus, Edit2, Trash2, X, Save, 
-  Calendar, Loader2, Clock, MapPin, Layers, Link as LinkIcon, CalendarDays, ClipboardList
+  Calendar, Loader2, Clock, MapPin, Layers, Link as LinkIcon, CalendarDays, ClipboardList,
+  Users // 2. Tambahkan icon Users untuk tombol asesor
 } from 'lucide-react';
 
 const JadwalUji = () => {
+  // 3. Inisialisasi navigate
+  const navigate = useNavigate();
+
   // --- STATE ---
   const [data, setData] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -47,7 +53,7 @@ const JadwalUji = () => {
     "Juli", "Agustus", "September", "Oktober", "November", "Desember"
   ];
 
-  // --- FETCH DATA (SUDAH DIPISAH AGAR LEBIH AMAN) ---
+  // --- FETCH DATA ---
   const fetchData = async () => {
     setLoading(true);
     
@@ -83,7 +89,6 @@ const JadwalUji = () => {
       setListTuk(Array.isArray(tukData) ? tukData : []);
     } catch (error) {
       console.error("Error fetching TUK (Kemungkinan Error 500 dari Backend):", error);
-      // Disengaja tidak ada alert agar form jadwal tetap bisa terbuka
     }
 
     setLoading(false);
@@ -103,7 +108,6 @@ const JadwalUji = () => {
     setIsEditMode(true);
     setCurrentId(item.id_jadwal);
     
-    // Konversi format tanggal untuk input type="date"
     const formatDate = (dateString) => dateString ? dateString.split('T')[0] : '';
 
     setFormData({
@@ -150,35 +154,27 @@ const JadwalUji = () => {
     }
   };
 
-  // FUNGSI BERSIH-BERSIH DATA (Fix Error Sequelize Tipe Data)
   const sanitizeData = (data) => {
     const clean = { ...data };
-    
-    // Pastikan field relasi berupa integer (Number)
     clean.id_skema = clean.id_skema ? parseInt(clean.id_skema) : null;
     clean.id_tuk = clean.id_tuk ? parseInt(clean.id_tuk) : null;
     clean.tahun = clean.tahun ? parseInt(clean.tahun) : null;
     clean.kuota = clean.kuota ? parseInt(clean.kuota) : 0;
 
-    // Jadikan null jika string kosong agar tidak error di Database
     ['tgl_pra_asesmen', 'tgl_awal', 'tgl_akhir', 'jam', 'kode_jadwal', 'url_agenda', 'periode_bulan', 'gelombang'].forEach(field => {
       if (!clean[field] || clean[field] === "") {
         clean[field] = null;
       }
     });
 
-    // Jika jam diisi tapi tidak ada detiknya, tambahkan :00 (Cth: "08:00" -> "08:00:00")
     if (clean.jam && clean.jam.length === 5) {
       clean.jam = `${clean.jam}:00`;
     }
-
     return clean;
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
-    // Validasi Sesuai Controller (id_skema, id_tuk, nama_kegiatan Wajib)
     if (!formData.id_skema || !formData.id_tuk || !formData.nama_kegiatan) {
       Swal.fire('Peringatan', 'Nama Kegiatan, Skema, dan TUK wajib diisi!', 'warning');
       return;
@@ -203,13 +199,11 @@ const JadwalUji = () => {
     }
   };
 
-  // Pencarian
   const filteredData = data.filter(item => 
     (item.nama_kegiatan && item.nama_kegiatan.toLowerCase().includes(searchTerm.toLowerCase())) ||
     (item.kode_jadwal && item.kode_jadwal.toLowerCase().includes(searchTerm.toLowerCase()))
   );
 
-  // Helper Class Form
   const inputClass = "w-full p-2.5 border border-[#071E3D]/20 rounded-lg text-[13px] text-[#071E3D] bg-[#FAFAFA] focus:bg-white focus:outline-none focus:border-[#CC6B27] focus:ring-2 focus:ring-[#CC6B27]/10 transition-all font-medium";
   const labelClass = "block text-[12px] font-bold text-[#071E3D] mb-1.5";
 
@@ -265,7 +259,7 @@ const JadwalUji = () => {
                 <th className="py-3.5 px-4 bg-[#071E3D] text-[#FAFAFA] font-semibold text-[12px] uppercase tracking-wider border-b-4 border-[#CC6B27] w-48">Waktu Pelaksanaan</th>
                 <th className="py-3.5 px-4 bg-[#071E3D] text-[#FAFAFA] font-semibold text-[12px] uppercase tracking-wider border-b-4 border-[#CC6B27] text-center w-20">Kuota</th>
                 <th className="py-3.5 px-4 bg-[#071E3D] text-[#FAFAFA] font-semibold text-[12px] uppercase tracking-wider border-b-4 border-[#CC6B27] text-center w-28">Status</th>
-                <th className="py-3.5 px-4 bg-[#071E3D] text-[#FAFAFA] font-semibold text-[12px] uppercase tracking-wider border-b-4 border-[#CC6B27] text-center w-24">Aksi</th>
+                <th className="py-3.5 px-4 bg-[#071E3D] text-[#FAFAFA] font-semibold text-[12px] uppercase tracking-wider border-b-4 border-[#CC6B27] text-center w-36">Aksi</th>
               </tr>
             </thead>
             <tbody>
@@ -285,7 +279,6 @@ const JadwalUji = () => {
                 </tr>
               ) : (
                 filteredData.map((item, index) => {
-                  // Ambil nama Skema dan TUK (Aman dari perbedaan huruf besar/kecil di response)
                   const skemaName = item.skema?.judul_skema || item.Skema?.judul_skema || <span className="italic text-red-500">Skema Terhapus</span>;
                   const tukName = item.tuk?.nama_tuk || item.Tuk?.nama_tuk || item.TUK?.nama_tuk || <span className="italic text-red-500">TUK Terhapus</span>;
                   
@@ -354,9 +347,18 @@ const JadwalUji = () => {
                         </span>
                       </td>
                       
-                      {/* Aksi */}
+                      {/* Aksi (SUDAH DITAMBAHKAN TOMBOL ASESOR) */}
                       <td className="py-4 px-4 text-center">
                         <div className="flex justify-center gap-1.5">
+                          {/* Tombol Atur Asesor */}
+                          <button 
+                            onClick={() => navigate(`/admin/jadwal/${item.id_jadwal}/asesor`)} 
+                            className="p-1.5 text-blue-600 bg-blue-50 rounded hover:bg-blue-600 hover:text-white border border-blue-100 transition-colors" 
+                            title="Atur Asesor"
+                          >
+                            <Users size={16} />
+                          </button>
+                          
                           <button onClick={() => handleEdit(item)} className="p-1.5 text-[#CC6B27] bg-[#CC6B27]/10 rounded hover:bg-[#CC6B27] hover:text-white transition-colors" title="Edit">
                             <Edit2 size={16} />
                           </button>
@@ -427,7 +429,6 @@ const JadwalUji = () => {
                       <select name="id_skema" value={formData.id_skema} onChange={handleInputChange} className={inputClass} required>
                         <option value="">-- Pilih Skema --</option>
                         {listSkema.map(s => {
-                          // Antisipasi field ID dari backend
                           const idSkema = s.id_skema || s.id;
                           const judul = s.judul_skema || s.judul;
                           const kode = s.kode_skema || s.kode;
@@ -442,7 +443,6 @@ const JadwalUji = () => {
                       <select name="id_tuk" value={formData.id_tuk} onChange={handleInputChange} className={inputClass} required>
                         <option value="">-- Pilih Tempat Uji --</option>
                         {listTuk.map(t => {
-                          // Handle fleksibilitas nama kolom (bisa id_tuk atau id)
                           const idTuk = t.id_tuk || t.id;
                           const namaTuk = t.nama_tuk || t.nama;
                           return (
