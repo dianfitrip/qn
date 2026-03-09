@@ -340,9 +340,6 @@ const Sidebar = () => {
             <button className={getSubItemClass(isActive('/admin/asesor/statistik'))} onClick={() => handleNav('/admin/asesor/statistik')}>
               <span className={`w-1.5 h-1.5 rounded-full mr-3 ${isActive('/admin/asesor/statistik') ? 'bg-[#CC6B27]' : 'bg-[#FAFAFA]/40'}`}></span>Statistik Wilayah
             </button>
-            <button className={getSubItemClass(isActive('/admin/asesor/jadwal'))} onClick={() => handleNav('/admin/asesor/jadwal')}>
-              <span className={`w-1.5 h-1.5 rounded-full mr-3 ${isActive('/admin/asesor/jadwal') ? 'bg-[#CC6B27]' : 'bg-[#FAFAFA]/40'}`}></span>Jadwal Asesor
-            </button>
           </div>
         )}
 
