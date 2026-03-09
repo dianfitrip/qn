@@ -26,6 +26,7 @@ import Mapa02 from "../pages/admin/Mapa02";
 import BankSoal from "../pages/admin/BankSoal";
 import BankSoalPG from "../pages/admin/BankSoalPG";
 import Surveillance from "../pages/admin/Surveillance";
+import JadwalAsesor from "../pages/admin/JadwalAsesor";
 
 /* PROTECTED */
 const getUser = () => {
@@ -71,6 +72,7 @@ export default function AdminRoutes() {
           <Route path="bank-soal" element={<BankSoal />} />
           <Route path="bank-soal-pg" element={<BankSoalPG />} />
           <Route path="surveillance" element={<Surveillance />} />
+          <Route path="jadwal/:id_jadwal/asesor" element={<JadwalAsesor />} />
         </Route>
       </Routes>
     </ProtectedAdmin>
