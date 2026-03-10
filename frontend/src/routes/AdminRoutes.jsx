@@ -31,6 +31,7 @@ import Mapa01 from "../pages/admin/Mapa01";
 import Mapa02 from "../pages/admin/Mapa02";
 import AsesiTerjadwal from "../pages/admin/AsesiTerjadwal";
 import AsesiKompeten from "../pages/admin/AsesiKompeten";
+import PesertaJadwal from "../pages/admin/PesertaJadwal";
 
 
 /* PROTECTED */
@@ -91,6 +92,7 @@ export default function AdminRoutes() {
           <Route path="asesi/terjadwal" element={<AsesiTerjadwal />} />
           <Route path="asesi/kompeten" element={<AsesiKompeten />} />
           <Route path="asesor/statistik" element={<StatistikWilayah />} />
+          <Route path="jadwal/:id_jadwal/peserta" element={<PesertaJadwal />} />
         </Route>
       </Routes>
     </ProtectedAdmin>
