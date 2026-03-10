@@ -23,7 +23,7 @@ import BankSoal from "../pages/admin/BankSoal";
 import BankSoalPG from "../pages/admin/BankSoalPG";
 import Surveillance from "../pages/admin/Surveillance";
 import CariAsesi from "../pages/admin/CariAsesi";
-// Rute Instrumen & Asesmen
+import StatistikWilayah from "../pages/admin/StatistikWilayah";
 import IA01Observasi from "../pages/admin/IA01Observasi";
 import IA03Pertanyaan from "../pages/admin/IA03Pertanyaan";
 import Mapa from "../pages/admin/Mapa";
@@ -90,6 +90,7 @@ export default function AdminRoutes() {
 
           <Route path="asesi/terjadwal" element={<AsesiTerjadwal />} />
           <Route path="asesi/kompeten" element={<AsesiKompeten />} />
+          <Route path="asesor/statistik" element={<StatistikWilayah />} />
         </Route>
       </Routes>
     </ProtectedAdmin>
