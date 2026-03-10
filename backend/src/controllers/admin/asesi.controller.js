@@ -99,12 +99,11 @@ exports.importAsesiExcel = async (req, res) => {
 
 exports.getAll = async (req, res) => {
   try {
-
     const data = await ProfileAsesi.findAll({
       include: [
         {
           model: User,
-          attributes: ["id_user", "email", "no_hp", "status_user"],
+          attributes: ["id_user", "email", "no_hp", "status_user", "created_at"], // tambahkan created_at disini jika butuh
           include: [
             {
               model: Notifikasi,
@@ -114,7 +113,9 @@ exports.getAll = async (req, res) => {
           ]
         }
       ],
-      order: [["created_at", "DESC"]]
+      // GANTI ORDERNYA MENJADI INI:
+      order: [[User, "created_at", "DESC"]] 
+      // Atau kalau mau berdasarkan nama: order: [["nama_lengkap", "ASC"]]
     });
 
     return response.success(res, "List Asesi", data);
