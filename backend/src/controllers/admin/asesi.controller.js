@@ -3,6 +3,7 @@ const { ProfileAsesi, Role, User, Notifikasi } = require("../../models");
 const response = require("../../utils/response.util");
 const { createUser, resetUserPassword } = require("../../services/account.service");
 const sequelize = require("../../config/database");
+const { createNotifikasi } = require("../../services/notifikasi.service");
 
 exports.importAsesiExcel = async (req, res) => {
   try {
