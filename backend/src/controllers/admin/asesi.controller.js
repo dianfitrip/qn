@@ -6,7 +6,6 @@ const sequelize = require("../../config/database");
 
 exports.importAsesiExcel = async (req, res) => {
   try {
-
     if (!req.file) {
       return response.error(res, "File tidak ditemukan", 400);
     }
@@ -32,15 +31,14 @@ exports.importAsesiExcel = async (req, res) => {
     let totalFailed = 0;
 
     for (const row of data) {
-
       const t = await sequelize.transaction();
 
       try {
-
         if (!row.nik || !row.email) {
           throw new Error(`Data tidak lengkap untuk NIK ${row.nik}`);
         }
 
+        // Buat user asesi (password dibuat otomatis oleh sistem tapi tidak kita tangkap)
         const { user } = await createUser({
           username: row.nik,
           email: row.email,
@@ -48,6 +46,7 @@ exports.importAsesiExcel = async (req, res) => {
           id_role: role.id_role
         }, { transaction: t });
 
+        // Simpan ke tabel profile asesi
         await ProfileAsesi.create({
           id_user: user.id_user,
           nik: row.nik,
@@ -77,10 +76,29 @@ exports.importAsesiExcel = async (req, res) => {
           email_perusahaan: row.email_perusahaan
         }, { transaction: t });
 
+        // Commit transaksi database jika berhasil
         await t.commit();
         totalSuccess++;
 
+        // ==========================================
+        // LOGIKA PEMBUATAN NOTIFIKASI OTOMATIS
+        // ==========================================
+        try {
+          await createNotifikasi({
+            channel: "sistem", // Channel sistem karena bukan dikirim via email/wa
+            tujuan: row.nik, 
+            pesan: `Akun Asesi berhasil dibuat. Username: ${row.nik}`, // Password dirahasiakan
+            status_kirim: "terkirim",
+            ref_type: "akun",
+            ref_id: user.id_user
+          });
+        } catch (notifErr) {
+          // Hanya mencatat di console jika notif gagal, tidak menggagalkan proses import keseluruhan
+          console.error(`Gagal membuat notif untuk NIK ${row.nik}:`, notifErr.message);
+        }
+
       } catch (err) {
+        // Rollback transaksi jika gagal di tengah jalan
         await t.rollback();
         totalFailed++;
         console.error(`Gagal import NIK ${row.nik}:`, err.message);
