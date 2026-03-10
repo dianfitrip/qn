@@ -5,7 +5,7 @@ import { getProvinsi, getKota, getKecamatan, getKelurahan } from "../../services
 import { 
   Search, Eye, Edit2, Trash2, X, Save, 
   User as UserIcon, Loader2, Upload, FileSpreadsheet,
-  GraduationCap, MapPin, Mail, CheckCircle, Send, Briefcase, Users
+  GraduationCap, MapPin, Mail, Briefcase, Users, Key
 } from 'lucide-react';
 
 const TambahAsesi = () => {
@@ -13,10 +13,6 @@ const TambahAsesi = () => {
   const [data, setData] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
-  
-  // State untuk melacak ID Asesi yang sudah dikirimi email
-  const [emailSentIds, setEmailSentIds] = useState(new Set());
-  const [sendingEmailId, setSendingEmailId] = useState(null);
   
   // Modal State
   const [showModal, setShowModal] = useState(false);
@@ -38,7 +34,7 @@ const TambahAsesi = () => {
   const [selectedKotaId, setSelectedKotaId] = useState('');
   const [selectedKecamatanId, setSelectedKecamatanId] = useState('');
 
-  // Form State (Sesuai dengan profileAsesi.model.js)
+  // Form State
   const initialFormState = {
     nik: '', nama_lengkap: '', email: '', no_hp: '', jenis_kelamin: 'laki-laki',
     tempat_lahir: '', tanggal_lahir: '', kebangsaan: 'Indonesia',
@@ -165,14 +161,18 @@ const TambahAsesi = () => {
         return Swal.fire('Peringatan', 'NIK, Email, dan Nama Lengkap wajib diisi!', 'warning');
     }
 
-    // Jika bukan edit mode, hentikan proses (karena create ditiadakan)
     if (!isEditMode) return;
 
     try {
       Swal.fire({ title: 'Menyimpan...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+      
       const payload = { ...formData };
       if (payload.tanggal_lahir === "") payload.tanggal_lahir = null;
       payload.tahun_lulus = payload.tahun_lulus ? parseInt(payload.tahun_lulus) : null;
+
+      // PERBAIKAN: Hapus data email & no hp dari payload karena beda tabel
+      delete payload.email;
+      delete payload.no_hp;
 
       await api.put(`/admin/asesi/${currentId}`, payload);
       Swal.fire('Sukses!', 'Data asesi berhasil diperbarui', 'success');
@@ -206,6 +206,7 @@ const TambahAsesi = () => {
     });
   };
 
+  // PERBAIKAN: Handle Import Error
   const handleImportExcel = async (e) => {
     e.preventDefault();
     if (!fileExcel) return Swal.fire('Peringatan', 'Pilih file Excel terlebih dahulu', 'warning');
@@ -215,39 +216,62 @@ const TambahAsesi = () => {
 
     try {
       Swal.fire({ title: 'Proses Import...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
-      await api.post('/admin/import-asesi', formUpload, {
+      
+      const response = await api.post('/admin/import-asesi', formUpload, {
         headers: { 'Content-Type': 'multipart/form-data' }
       });
-      Swal.fire('Sukses', 'Data Asesi berhasil diimport', 'success');
+
+      const resData = response.data || response;
+      const message = resData.message || 'Import diproses';
+
+      if (message.includes('Gagal:') && !message.includes('Gagal: 0')) {
+        if (message.includes('Berhasil: 0')) {
+          Swal.fire('Import Gagal', message + '<br><br><small>Pastikan NIK/Email belum terdaftar di sistem.</small>', 'error');
+        } else {
+          Swal.fire('Import Selesai (Ada Catatan)', message, 'warning');
+        }
+      } else {
+        Swal.fire('Sukses', message, 'success');
+      }
+
       setShowImportModal(false);
       setFileExcel(null);
       fetchData(pagination.page);
+
     } catch (error) {
       Swal.fire('Error', error.response?.data?.message || 'Gagal import excel', 'error');
     }
   };
 
-  const handleSendEmail = async (id_user, email) => {
+  // PERBAIKAN: Ganti Send Email jadi Reset Password
+  const handleResetPassword = async (id_user, email) => {
     const confirm = await Swal.fire({
-      title: 'Kirim Informasi Akun?',
-      text: `Email berisi detail login akan dikirim ke ${email}`,
-      icon: 'question',
+      title: 'Reset Password?',
+      text: `Sandi untuk akun ${email} akan direset ulang.`,
+      icon: 'warning',
       showCancelButton: true,
       confirmButtonColor: '#CC6B27',
       cancelButtonColor: '#182D4A',
-      confirmButtonText: 'Ya, Kirim Email'
+      confirmButtonText: 'Ya, Reset Sandi'
     });
 
     if (confirm.isConfirmed) {
-      setSendingEmailId(id_user);
       try {
-        await api.post(`/admin/send-email/${id_user}`); 
-        setEmailSentIds(prev => new Set(prev).add(id_user));
-        Swal.fire('Berhasil!', `Email telah terkirim ke ${email}`, 'success');
+        Swal.fire({ title: 'Memproses...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+        
+        // Sesuaikan dengan route API Anda di backend
+        const response = await api.put(`/admin/asesi/reset-password/${id_user}`); 
+        const resData = response.data !== undefined ? response.data : response;
+        
+        const { username, password } = resData.data;
+
+        Swal.fire({
+            title: 'Berhasil Reset!',
+            html: `Sandi berhasil diatur ulang.<br><br><b>Username:</b> ${username}<br><b>Password Baru:</b> ${password}<br><br><small style="color:red;">Mohon simpan atau berikan info ini ke asesi!</small>`,
+            icon: 'success'
+        });
       } catch (error) {
-        Swal.fire('Gagal', error.response?.data?.message || 'Gagal mengirim email', 'error');
-      } finally {
-        setSendingEmailId(null);
+        Swal.fire('Gagal', error.response?.data?.message || 'Gagal mereset password', 'error');
       }
     }
   };
@@ -295,7 +319,6 @@ const TambahAsesi = () => {
           <p className="text-[14px] text-[#182D4A] m-0">Kelola data profil dan akun asesi.</p>
         </div>
         <div className="flex items-center gap-3 w-full md:w-auto">
-          {/* Tombol Tambah Dihapus, Import Excel menjadi primary button */}
           <button 
             className="flex-1 md:flex-none px-4 py-2.5 rounded-lg font-bold bg-[#CC6B27] text-white hover:bg-[#a8561f] shadow-sm hover:shadow-md transition-all flex items-center justify-center gap-2 text-[13px]"
             onClick={() => setShowImportModal(true)}
@@ -367,19 +390,13 @@ const TambahAsesi = () => {
                     <td className="py-3 px-4 text-center">
                       <div className="flex justify-center gap-2">
                         
-                        {/* TOMBOL SEND EMAIL */}
+                        {/* PERBAIKAN: Tombol Ganti Sandi */}
                         <button 
-                          onClick={() => handleSendEmail(item.id_user, item.user?.email || item.email)}
-                          disabled={emailSentIds.has(item.id_user) || sendingEmailId === item.id_user}
-                          className={`px-2 py-1.5 rounded flex items-center justify-center gap-1.5 text-[11px] font-bold transition-all border ${
-                            emailSentIds.has(item.id_user) 
-                              ? 'bg-green-50 text-green-600 border-green-200 cursor-not-allowed opacity-70' 
-                              : 'bg-[#182D4A]/5 text-[#182D4A] border-[#182D4A]/20 hover:bg-[#182D4A]/10' 
-                          }`}
-                          title="Kirim Informasi Akun ke Email"
+                          onClick={() => handleResetPassword(item.id_user || item.id, item.user?.email || item.email)}
+                          className="px-2 py-1.5 rounded flex items-center justify-center gap-1.5 text-[11px] font-bold transition-all border bg-[#182D4A]/5 text-[#182D4A] border-[#182D4A]/20 hover:bg-[#182D4A]/10"
+                          title="Reset Password Asesi"
                         >
-                          {sendingEmailId === item.id_user ? <Loader2 size={14} className="animate-spin" /> : <Send size={14} />}
-                          {emailSentIds.has(item.id_user) ? 'Terkirim' : 'Kirim Akun'}
+                          <Key size={14} /> Reset Sandi
                         </button>
 
                         <button onClick={() => { handleEdit(item); setIsDetailMode(true); }} className="p-1.5 text-[#182D4A] bg-[#182D4A]/10 rounded hover:bg-[#182D4A] hover:text-white transition-colors" title="Detail"><Eye size={16} /></button>
@@ -427,7 +444,10 @@ const TambahAsesi = () => {
                     <div><label className="block text-[12px] font-bold text-[#071E3D] mb-1">NIK <span className="text-red-500">*</span></label><input type="text" name="nik" value={formData.nik} onChange={handleInputChange} maxLength="16" required disabled={isDetailMode} placeholder="16 Digit Angka" className={inputClass}/></div>
                     <div><label className="block text-[12px] font-bold text-[#071E3D] mb-1">Nama Lengkap <span className="text-red-500">*</span></label><input type="text" name="nama_lengkap" value={formData.nama_lengkap} onChange={handleInputChange} required disabled={isDetailMode} placeholder="Nama lengkap" className={inputClass}/></div>
                     <div><label className="block text-[12px] font-bold text-[#071E3D] mb-1">Email Login <span className="text-red-500">*</span></label><input type="email" name="email" value={formData.email} onChange={handleInputChange} required disabled={isDetailMode || isEditMode} placeholder="Email aktif" className={inputClass}/></div>
-                    <div><label className="block text-[12px] font-bold text-[#071E3D] mb-1">No HP / WhatsApp <span className="text-red-500">*</span></label><input type="text" name="no_hp" value={formData.no_hp} onChange={handleInputChange} required disabled={isDetailMode} placeholder="08xxxxxxxx" className={inputClass}/></div>
+                    
+                    {/* PERBAIKAN: Input No HP disabled saat edit */}
+                    <div><label className="block text-[12px] font-bold text-[#071E3D] mb-1">No HP / WhatsApp <span className="text-red-500">*</span></label><input type="text" name="no_hp" value={formData.no_hp} onChange={handleInputChange} required disabled={isDetailMode || isEditMode} placeholder="08xxxxxxxx" className={inputClass}/></div>
+                    
                     <div><label className="block text-[12px] font-bold text-[#071E3D] mb-1">Tempat Lahir</label><input type="text" name="tempat_lahir" value={formData.tempat_lahir} onChange={handleInputChange} disabled={isDetailMode} className={inputClass}/></div>
                     <div><label className="block text-[12px] font-bold text-[#071E3D] mb-1">Tanggal Lahir</label><input type="date" name="tanggal_lahir" value={formData.tanggal_lahir} onChange={handleInputChange} disabled={isDetailMode} className={inputClass}/></div>
                     <div>
