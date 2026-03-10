@@ -20,7 +20,7 @@ const METODE_OPTIONS = [
 ];
 
 const Mapa02 = () => {
-  const { id } = useParams(); // id_mapa dari URL
+  const { id } = useParams(); // Ingat: di route ini "id" adalah id_skema!
   const navigate = useNavigate();
 
   // --- STATE UTAMA ---
@@ -43,68 +43,72 @@ const Mapa02 = () => {
   // State Modal Metode
   const [showMetodeModal, setShowMetodeModal] = useState(false);
   const [activeMappingId, setActiveMappingId] = useState(null);
-  const [activeMetodes, setActiveMetodes] = useState([]); // Daftar id metode aktif
+  const [activeMetodes, setActiveMetodes] = useState([]); 
 
   // --- FUNGSI FETCH DATA ---
   const fetchAllData = async () => {
     setLoading(true);
     try {
-      let idSkema = null;
+      const idSkema = parseInt(id); // Langsung pakai ID dari URL
+      let idMapa = null;
 
-      // 1. Ambil Detail Master MAPA
+      // 1. Cari Master MAPA-02 berdasarkan id_skema
       try {
-        const resMapa = await api.get(`/admin/mapa/${id}`);
-        const dataMapa = resMapa.data?.data || resMapa.data;
-        setMasterData(dataMapa);
+        const resMapa = await api.get(`/admin/mapa`);
+        const allMapa = resMapa.data?.data || resMapa.data || [];
         
-        console.log("1. Data MAPA dari API:", dataMapa);
+        // Temukan record MAPA-02 milik skema ini
+        const currentMapa = allMapa.find(m => m.id_skema === idSkema && m.jenis === 'MAPA-02');
         
-        // Ambil id_skema. Mencakup berbagai kemungkinan struktur JSON dari backend
-        idSkema = dataMapa?.id_skema || 
-                  dataMapa?.skema_id || 
-                  dataMapa?.Skema?.id_skema || 
-                  dataMapa?.Skema?.id || 
-                  dataMapa?.skema?.id;
-
-        console.log("2. ID Skema yang terdeteksi:", idSkema);
+        if (currentMapa) {
+          idMapa = currentMapa.id_mapa;
+          setMasterData(currentMapa);
+        } else {
+          Swal.fire('Info', 'Dokumen Master MAPA-02 untuk skema ini belum ada. Anda mungkin harus membuatnya terlebih dahulu di menu MAPA.', 'info');
+        }
       } catch (e) {
         console.error("Gagal load info MAPA:", e);
       }
 
       // 2. Ambil Daftar Mapping MAPA-02
-      const resMapping = await api.get(`/admin/mapa02/mapping/${id}`);
-      let mappingData = resMapping.data?.data || resMapping.data || [];
-      if (!Array.isArray(mappingData) && mappingData.rows) mappingData = mappingData.rows;
-      setListMapping(Array.isArray(mappingData) ? mappingData : []);
-
-      // 3. Ambil Dropdown Kelompok Pekerjaan (Menggunakan Model Baru)
-      if (idSkema) {
+      if (idMapa) {
         try {
-          const resPekerjaan = await api.get(`/admin/kelompok-pekerjaan/skema/${idSkema}`);
-          console.log("3. Response API Kelompok Pekerjaan:", resPekerjaan.data);
-
-          let pekerjaandata = resPekerjaan.data?.data || resPekerjaan.data || [];
-          if (!Array.isArray(pekerjaandata) && pekerjaandata.rows) pekerjaandata = pekerjaandata.rows;
-          
-          setListKelompokPekerjaan(Array.isArray(pekerjaandata) ? pekerjaandata : []);
+          const resMapping = await api.get(`/admin/mapa02/mapping/${idMapa}`);
+          let mappingData = resMapping.data?.data || resMapping.data || [];
+          if (!Array.isArray(mappingData) && mappingData.rows) mappingData = mappingData.rows;
+          setListMapping(Array.isArray(mappingData) ? mappingData : []);
         } catch (e) {
-          console.error("Gagal load kelompok pekerjaan:", e);
-          setListKelompokPekerjaan([]);
+          console.error("Gagal memuat mapping MAPA-02:", e);
         }
       } else {
-        console.warn("Peringatan: id_skema kosong, request Kelompok Pekerjaan dibatalkan.");
+        setListMapping([]);
+      }
+
+      // 3. Ambil Dropdown Kelompok Pekerjaan (Pasti jalan karena idSkema sudah valid)
+      try {
+        const resPekerjaan = await api.get(`/admin/kelompok-pekerjaan/skema/${idSkema}`);
+        let pekerjaandata = resPekerjaan.data?.data || resPekerjaan.data || [];
+        if (!Array.isArray(pekerjaandata) && pekerjaandata.rows) pekerjaandata = pekerjaandata.rows;
+        
+        setListKelompokPekerjaan(Array.isArray(pekerjaandata) ? pekerjaandata : []);
+      } catch (e) {
+        console.error("Gagal load kelompok pekerjaan:", e);
         setListKelompokPekerjaan([]);
       }
 
       // 4. Ambil Dropdown Unit Kompetensi
-      const resUnit = await api.get('/admin/unit-kompetensi');
-      let unitData = resUnit.data?.data || resUnit.data || [];
-      if (!Array.isArray(unitData) && unitData.rows) unitData = unitData.rows;
-      setListUnitKompetensi(Array.isArray(unitData) ? unitData : []);
+      try {
+        const resUnit = await api.get('/admin/unit-kompetensi');
+        let unitData = resUnit.data?.data || resUnit.data || [];
+        if (!Array.isArray(unitData) && unitData.rows) unitData = unitData.rows;
+        setListUnitKompetensi(Array.isArray(unitData) ? unitData : []);
+      } catch (e) {
+        console.error("Gagal load unit kompetensi:", e);
+      }
 
     } catch (error) {
       console.error("Error fetching data:", error);
-      Swal.fire('Error', 'Gagal memuat data MAPA-02', 'error');
+      Swal.fire('Error', 'Terjadi kesalahan saat memuat data MAPA-02', 'error');
     } finally {
       setLoading(false);
     }
@@ -125,11 +129,16 @@ const Mapa02 = () => {
     if (!formData.id_unit || !formData.id_kelompok) {
       return Swal.fire('Peringatan', 'Silakan pilih Unit dan Pekerjaan', 'warning');
     }
+    
+    // Perbaikan: gunakan id_mapa asli yang di-fetch dari masterData, BUKAN id dari url
+    if (!masterData || !masterData.id_mapa) {
+      return Swal.fire('Gagal', 'Master MAPA-02 tidak ditemukan. Pastikan Anda sudah membuat dokumen MAPA-02 untuk skema ini di menu MAPA utama.', 'error');
+    }
 
     setSubmitting(true);
     try {
       await api.post('/admin/mapa02/mapping', {
-        id_mapa: parseInt(id),
+        id_mapa: parseInt(masterData.id_mapa),
         id_unit: parseInt(formData.id_unit),
         id_kelompok: parseInt(formData.id_kelompok)
       });
@@ -216,10 +225,10 @@ const Mapa02 = () => {
         <div className="absolute top-0 right-0 w-64 h-64 bg-white/5 rounded-full blur-3xl -translate-y-1/2 translate-x-1/3"></div>
         <div className="relative z-10">
           <button 
-            onClick={() => navigate('/admin/mapa')}
+            onClick={() => navigate('/admin/skema')}
             className="flex items-center gap-2 text-[#FAFAFA]/70 hover:text-white mb-4 transition-colors text-sm font-medium"
           >
-            <ArrowLeft size={16} /> Kembali ke Master MAPA
+            <ArrowLeft size={16} /> Kembali ke Daftar Skema
           </button>
           
           <div className="flex items-center gap-4 mb-2">
@@ -229,7 +238,7 @@ const Mapa02 = () => {
             <div>
               <h1 className="text-2xl font-black mb-1">Pengisian MAPA-02</h1>
               <p className="text-[#FAFAFA]/70 text-sm">
-                Skema: {masterData?.skema?.judul_skema || masterData?.Skema?.judul_skema || 'Memuat...'}
+                Skema: {masterData?.skema?.judul_skema || masterData?.Skema?.judul_skema || 'Info Skema Belum Diload'}
               </p>
             </div>
           </div>
@@ -275,7 +284,6 @@ const Mapa02 = () => {
                   const unitName = item.UnitKompetensi?.judul_unit || item.unit?.judul_unit || '-';
                   const unitCode = item.UnitKompetensi?.kode_unit || item.unit?.kode_unit || '';
                   
-                  // PERBAIKAN: Menyesuaikan dengan kolom `nama_kelompok` dari model KelompokPekerjaan
                   const pekerjaanName = item.KelompokPekerjaan?.nama_kelompok || 
                                         item.kelompok_pekerjaan?.nama_kelompok || 
                                         item.KelompokPekerjaan?.nama_pekerjaan || 
@@ -369,7 +377,6 @@ const Mapa02 = () => {
                 >
                   <option value="">-- Pilih Pekerjaan / Kelompok --</option>
                   {listKelompokPekerjaan.map((item, index) => {
-                    // PERBAIKAN: Menyesuaikan dengan model id_kelompok dan nama_kelompok
                     const idKelompok = item.id_kelompok || item.id;
                     const namaKelompok = item.nama_kelompok || item.nama_pekerjaan || item.pekerjaan || 'Tanpa Nama';
                     
