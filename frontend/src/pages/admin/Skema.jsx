@@ -135,11 +135,13 @@ const Skema = () => {
     const dataToSend = new FormData();
 
     Object.keys(formData).forEach(key => {
+      // Abaikan 'dokumen' string, dan jangan kirim string kosong agar tidak error saat diinsert ke database untuk field numerik
       if (key !== 'dokumen' && formData[key] !== null && formData[key] !== undefined && formData[key] !== '') {
         dataToSend.append(key, formData[key]);
       }
     });
 
+    // Gunakan 'file_dokumen' sesuai key yang di-expect backend
     if (selectedFile) {
       dataToSend.append('file_dokumen', selectedFile);
     }
@@ -422,14 +424,14 @@ const Skema = () => {
                 </div>
               )}
 
-              {/* SEPARATOR KHUSUS NAVIGASI FORMULIR */}
+              {/* SEPARATOR KHUSUS NAVIGASI FORMULIR (RUTE BERSARANG KE /admin/skema/:id/...) */}
               <div className="border-t border-[#071E3D]/10 pt-6 mt-2">
                 <h4 className="text-[14px] font-bold text-[#071E3D] mb-4 flex items-center gap-2">
                   Navigasi Instrumen & Asesmen
                 </h4>
                 <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
                   <button 
-                    onClick={() => navigate('/admin/asesi/ia01-observasi')}
+                    onClick={() => navigate(`/admin/skema/${selectedSkema.id_skema}/ia01`)}
                     className="flex flex-col items-center justify-center p-3 rounded-xl border border-blue-200 bg-blue-50 text-blue-700 hover:bg-blue-600 hover:text-white transition-all shadow-sm group"
                   >
                     <span className="text-[12px] font-bold mb-1">FR.IA.01</span>
@@ -438,7 +440,7 @@ const Skema = () => {
                   </button>
                   
                   <button 
-                    onClick={() => navigate('/admin/asesi/ia03-pertanyaan')}
+                    onClick={() => navigate(`/admin/skema/${selectedSkema.id_skema}/ia03`)}
                     className="flex flex-col items-center justify-center p-3 rounded-xl border border-indigo-200 bg-indigo-50 text-indigo-700 hover:bg-indigo-600 hover:text-white transition-all shadow-sm group"
                   >
                     <span className="text-[12px] font-bold mb-1">FR.IA.03</span>
@@ -447,7 +449,7 @@ const Skema = () => {
                   </button>
                   
                   <button 
-                    onClick={() => navigate('/admin/mapa')}
+                    onClick={() => navigate(`/admin/skema/${selectedSkema.id_skema}/mapa`)}
                     className="flex flex-col items-center justify-center p-3 rounded-xl border border-[#CC6B27]/30 bg-[#CC6B27]/5 text-[#CC6B27] hover:bg-[#CC6B27] hover:text-white transition-all shadow-sm group"
                   >
                     <span className="text-[12px] font-bold mb-1">FR.MAPA</span>
@@ -456,7 +458,7 @@ const Skema = () => {
                   </button>
 
                   <button 
-                    onClick={() => navigate(`/admin/mapa01/${selectedSkema.id_skema}`)}
+                    onClick={() => navigate(`/admin/skema/${selectedSkema.id_skema}/mapa01`)}
                     className="flex flex-col items-center justify-center p-3 rounded-xl border border-teal-200 bg-teal-50 text-teal-700 hover:bg-teal-600 hover:text-white transition-all shadow-sm group"
                   >
                     <span className="text-[12px] font-bold mb-1">MAPA 01</span>
@@ -465,7 +467,7 @@ const Skema = () => {
                   </button>
 
                   <button 
-                    onClick={() => navigate(`/admin/mapa02/${selectedSkema.id_skema}`)}
+                    onClick={() => navigate(`/admin/skema/${selectedSkema.id_skema}/mapa02`)}
                     className="flex flex-col items-center justify-center p-3 rounded-xl border border-purple-200 bg-purple-50 text-purple-700 hover:bg-purple-600 hover:text-white transition-all shadow-sm group"
                   >
                     <span className="text-[12px] font-bold mb-1">MAPA 02</span>

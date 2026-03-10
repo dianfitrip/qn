@@ -35,8 +35,7 @@ const Sidebar = () => {
       newState.standar = isPathActive(['/admin/unit-kompetensi', '/admin/skkni', '/admin/bank-soal', '/admin/bank-soal-pg']);
       newState.biaya = isPathActive(['/admin/biaya']);
       newState.event = isPathActive(['/admin/jadwal']);
-      // Ditambahkan path mapa agar dropdown asesi terbuka saat di halaman mapa
-      newState.asesi = isPathActive(['/admin/asesi', '/admin/verifikasi-pendaftaran', '/admin/mapa', '/admin/mapa01', '/admin/mapa02']);
+      newState.asesi = isPathActive(['/admin/asesi', '/admin/verifikasi-pendaftaran']);
       newState.asesor = isPathActive(['/admin/asesor']);
       newState.persuratan = isPathActive(['/admin/surat']);
 
@@ -275,7 +274,7 @@ const Sidebar = () => {
           </div>
         </button>
 
-        <button className={getNavItemClass(isActive('/admin/asesi') || isActive('/admin/verifikasi-pendaftaran') || isActive('/admin/mapa') || isActive('/admin/mapa01') || isActive('/admin/mapa02'))} onClick={() => toggleMenu('asesi')}>
+        <button className={getNavItemClass(isActive('/admin/asesi') || isActive('/admin/verifikasi-pendaftaran'))} onClick={() => toggleMenu('asesi')}>
           <div className="flex items-center flex-1">
             <FaUserGraduate className="text-lg mr-3" />
             <span className="text-left">Data Asesi</span>
@@ -294,22 +293,6 @@ const Sidebar = () => {
               <span className={`w-1.5 h-1.5 rounded-full mr-3 ${isActive('/admin/verifikasi-pendaftaran') ? 'bg-[#CC6B27]' : 'bg-[#FAFAFA]/40'}`}></span>Pendaftar Baru
             </button>
             
-            <button className={getSubItemClass(isActive('/admin/mapa'))} onClick={() => handleNav('/admin/mapa')}>
-              <span className={`w-1.5 h-1.5 rounded-full mr-3 ${isActive('/admin/mapa') ? 'bg-[#CC6B27]' : 'bg-[#FAFAFA]/40'}`}></span>MAPA
-            </button>
-            <button className={getSubItemClass(isActive('/admin/mapa01'))} onClick={() => handleNav('/admin/mapa01')}>
-              <span className={`w-1.5 h-1.5 rounded-full mr-3 ${isActive('/admin/mapa01') ? 'bg-[#CC6B27]' : 'bg-[#FAFAFA]/40'}`}></span>MAPA-01
-            </button>
-            <button className={getSubItemClass(isActive('/admin/mapa02'))} onClick={() => handleNav('/admin/mapa02')}>
-              <span className={`w-1.5 h-1.5 rounded-full mr-3 ${isActive('/admin/mapa02') ? 'bg-[#CC6B27]' : 'bg-[#FAFAFA]/40'}`}></span>MAPA-02
-            </button>
-
-            <button className={getSubItemClass(isActive('/admin/asesi/ia01-observasi'))} onClick={() => handleNav('/admin/asesi/ia01-observasi')}>
-              <span className={`w-1.5 h-1.5 rounded-full mr-3 ${isActive('/admin/asesi/ia01-observasi') ? 'bg-[#CC6B27]' : 'bg-[#FAFAFA]/40'}`}></span>IA.01 Observasi
-            </button>
-            <button className={getSubItemClass(isActive('/admin/asesi/ia03-pertanyaan'))} onClick={() => handleNav('/admin/asesi/ia03-pertanyaan')}>
-              <span className={`w-1.5 h-1.5 rounded-full mr-3 ${isActive('/admin/asesi/ia03-pertanyaan') ? 'bg-[#CC6B27]' : 'bg-[#FAFAFA]/40'}`}></span>IA.03 Pertanyaan
-            </button>
             <button className={getSubItemClass(isActive('/admin/asesi/terjadwal'))} onClick={() => handleNav('/admin/asesi/terjadwal')}>
               <span className={`w-1.5 h-1.5 rounded-full mr-3 ${isActive('/admin/asesi/terjadwal') ? 'bg-[#CC6B27]' : 'bg-[#FAFAFA]/40'}`}></span>Terjadwal
             </button>
