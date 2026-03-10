@@ -22,13 +22,16 @@ import Banding from "../pages/admin/Banding";
 import BankSoal from "../pages/admin/BankSoal";
 import BankSoalPG from "../pages/admin/BankSoalPG";
 import Surveillance from "../pages/admin/Surveillance";
-
+import CariAsesi from "../pages/admin/CariAsesi";
 // Rute Instrumen & Asesmen
 import IA01Observasi from "../pages/admin/IA01Observasi";
 import IA03Pertanyaan from "../pages/admin/IA03Pertanyaan";
 import Mapa from "../pages/admin/Mapa";
 import Mapa01 from "../pages/admin/Mapa01";
 import Mapa02 from "../pages/admin/Mapa02";
+import AsesiTerjadwal from "../pages/admin/AsesiTerjadwal";
+import AsesiKompeten from "../pages/admin/AsesiKompeten";
+
 
 /* PROTECTED */
 const getUser = () => {
@@ -83,6 +86,10 @@ export default function AdminRoutes() {
           <Route path="bank-soal" element={<BankSoal />} />
           <Route path="bank-soal-pg" element={<BankSoalPG />} />
           <Route path="surveillance" element={<Surveillance />} />
+          <Route path="asesi/cari" element={<CariAsesi />} />
+
+          <Route path="asesi/terjadwal" element={<AsesiTerjadwal />} />
+          <Route path="asesi/kompeten" element={<AsesiKompeten />} />
         </Route>
       </Routes>
     </ProtectedAdmin>
