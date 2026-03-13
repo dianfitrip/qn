@@ -296,9 +296,9 @@ const Sidebar = () => {
               <span className={`w-1.5 h-1.5 rounded-full mr-3 ${isActive('/admin/asesi/kompeten') ? 'bg-[#CC6B27]' : 'bg-[#FAFAFA]/40'}`}></span>Kompeten
             </button>
             
-            {/* TAMBAHAN MENU ASESI BELUM KOMPETEN */}
+            {/* INI MENU YANG DIUBAH */}
             <button className={getSubItemClass(isActive('/admin/asesi/belum-kompeten'))} onClick={() => handleNav('/admin/asesi/belum-kompeten')}>
-              <span className={`w-1.5 h-1.5 rounded-full mr-3 ${isActive('/admin/asesi/belum-kompeten') ? 'bg-[#CC6B27]' : 'bg-[#FAFAFA]/40'}`}></span>Belum Tersertifikasi
+              <span className={`w-1.5 h-1.5 rounded-full mr-3 ${isActive('/admin/asesi/belum-kompeten') ? 'bg-[#CC6B27]' : 'bg-[#FAFAFA]/40'}`}></span>Belum Kompeten
             </button>
             
             <button className={getSubItemClass(isActive('/admin/asesi/blokir'))} onClick={() => handleNav('/admin/asesi/blokir')}>
