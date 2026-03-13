@@ -4,7 +4,7 @@ import Swal from 'sweetalert2';
 import api from "../../services/api";
 import { 
   Search, Plus, Edit2, Trash2, X, Save, FileText, 
-  Loader2, Settings, User, BookOpen, ExternalLink, CheckCircle, Clock
+  Loader2, Settings, User, BookOpen, ExternalLink, CheckCircle, Clock, List
 } from 'lucide-react';
 
 const Mapa = () => {
@@ -131,7 +131,7 @@ const Mapa = () => {
     if (item.jenis === 'MAPA-01') {
       navigate(`/admin/mapa01/${item.id_mapa}`);
     } else if (item.jenis === 'MAPA-02') {
-      navigate(`/admin/mapa02/${item.id_mapa}`);
+      navigate(`/admin/mapa02/${item.id_skema}`);
     }
   };
 
@@ -196,7 +196,7 @@ const Mapa = () => {
                 <th className="py-3.5 px-4 bg-[#071E3D] text-[#FAFAFA] font-semibold text-[12px] uppercase tracking-wider border-b-4 border-[#CC6B27]">Informasi Dokumen</th>
                 <th className="py-3.5 px-4 bg-[#071E3D] text-[#FAFAFA] font-semibold text-[12px] uppercase tracking-wider border-b-4 border-[#CC6B27]">Penyusun</th>
                 <th className="py-3.5 px-4 bg-[#071E3D] text-[#FAFAFA] font-semibold text-[12px] uppercase tracking-wider border-b-4 border-[#CC6B27] w-32 text-center">Status</th>
-                <th className="py-3.5 px-4 bg-[#071E3D] text-[#FAFAFA] font-semibold text-[12px] uppercase tracking-wider border-b-4 border-[#CC6B27] w-48 text-center">Aksi</th>
+                <th className="py-3.5 px-4 bg-[#071E3D] text-[#FAFAFA] font-semibold text-[12px] uppercase tracking-wider border-b-4 border-[#CC6B27] w-48 text-center">Aksi / Pengisian</th>
               </tr>
             </thead>
             <tbody>
@@ -263,21 +263,39 @@ const Mapa = () => {
 
                     {/* Aksi */}
                     <td className="py-4 px-4 text-center">
-                      <div className="flex justify-center items-center gap-2">
-                        <button 
-                          onClick={() => handleOpenMapa(item)} 
-                          className="px-3 py-1.5 bg-[#182D4A]/10 text-[#182D4A] hover:bg-[#071E3D] hover:text-white rounded-lg text-[11px] font-bold transition-colors flex items-center gap-1.5 border border-[#182D4A]/20"
-                          title="Buka / Isi Dokumen MAPA"
-                        >
-                          <ExternalLink size={14} /> Buka Form
-                        </button>
+                      <div className="flex flex-col gap-2">
                         
-                        <button onClick={() => handleEdit(item)} className="p-1.5 text-[#CC6B27] bg-[#CC6B27]/10 hover:bg-[#CC6B27] hover:text-white rounded-lg transition-colors shadow-sm" title="Edit Master Data">
-                          <Edit2 size={16} />
-                        </button>
-                        <button onClick={() => handleDelete(item.id_mapa)} className="p-1.5 text-red-600 bg-red-50 hover:bg-red-600 hover:text-white rounded-lg border border-red-100 transition-colors shadow-sm" title="Hapus MAPA">
-                          <Trash2 size={16} />
-                        </button>
+                        {/* INI BAGIAN YANG DITAMBAHKAN SESUAI REQUEST: TOMBOL DINAMIS */}
+                        <div className="flex justify-center">
+                          {item.jenis === 'MAPA-01' ? (
+                             <button 
+                               onClick={() => handleOpenMapa(item)} 
+                               className="px-3 py-1.5 bg-[#CC6B27]/10 text-[#CC6B27] hover:bg-[#CC6B27] hover:text-white rounded-lg text-[11px] font-bold transition-colors flex items-center gap-1.5 border border-[#CC6B27]/20 w-full justify-center"
+                               title="Buka Form MAPA-01"
+                             >
+                               <FileText size={14} /> Isi MAPA-01
+                             </button>
+                          ) : item.jenis === 'MAPA-02' ? (
+                             <button 
+                               onClick={() => handleOpenMapa(item)} 
+                               className="px-3 py-1.5 bg-[#182D4A]/10 text-[#182D4A] hover:bg-[#071E3D] hover:text-white rounded-lg text-[11px] font-bold transition-colors flex items-center gap-1.5 border border-[#182D4A]/20 w-full justify-center"
+                               title="Buka Form MAPA-02"
+                             >
+                               <List size={14} /> Isi MAPA-02
+                             </button>
+                          ) : null}
+                        </div>
+                        
+                        {/* TOMBOL EDIT DAN HAPUS ASLI */}
+                        <div className="flex justify-center items-center gap-2">
+                          <button onClick={() => handleEdit(item)} className="p-1.5 text-[#CC6B27] bg-[#CC6B27]/10 hover:bg-[#CC6B27] hover:text-white rounded-lg transition-colors shadow-sm" title="Edit Master Data">
+                            <Edit2 size={16} />
+                          </button>
+                          <button onClick={() => handleDelete(item.id_mapa)} className="p-1.5 text-red-600 bg-red-50 hover:bg-red-600 hover:text-white rounded-lg border border-red-100 transition-colors shadow-sm" title="Hapus MAPA">
+                            <Trash2 size={16} />
+                          </button>
+                        </div>
+
                       </div>
                     </td>
                   </tr>

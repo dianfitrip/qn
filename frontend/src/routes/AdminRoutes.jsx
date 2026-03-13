@@ -69,8 +69,9 @@ export default function AdminRoutes() {
           <Route path="skema/:id/ia01" element={<IA01Observasi />} />
           <Route path="skema/:id/ia03" element={<IA03Pertanyaan />} />
           <Route path="skema/:id/mapa" element={<Mapa />} />
-          <Route path="skema/:id/mapa01" element={<Mapa01 />} />
-          <Route path="skema/:id/mapa02" element={<Mapa02 />} />
+          
+          <Route path="mapa01/:id" element={<Mapa01 />} /> 
+          <Route path="mapa02/:id" element={<Mapa02 />} />
 
           {/* RUTE LAINNYA */}
           <Route path="dokumen-mutu" element={<DokumenMutu />} />

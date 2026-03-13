@@ -424,12 +424,13 @@ const Skema = () => {
                 </div>
               )}
 
-              {/* SEPARATOR KHUSUS NAVIGASI FORMULIR (RUTE BERSARANG KE /admin/skema/:id/...) */}
+              {/* SEPARATOR KHUSUS NAVIGASI FORMULIR */}
               <div className="border-t border-[#071E3D]/10 pt-6 mt-2">
                 <h4 className="text-[14px] font-bold text-[#071E3D] mb-4 flex items-center gap-2">
                   Navigasi Instrumen & Asesmen
                 </h4>
-                <div className="grid grid-cols-2 md:grid-cols-6 gap-3">
+                {/* GRID DIUBAH JADI grid-cols-4 KARENA TOMBOL BERKURANG DARI 6 JADI 4 */}
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                   <button 
                     onClick={() => navigate(`/admin/skema/${selectedSkema.id_skema}/ia01`)}
                     className="flex flex-col items-center justify-center p-3 rounded-xl border border-blue-200 bg-blue-50 text-blue-700 hover:bg-blue-600 hover:text-white transition-all shadow-sm group"
@@ -448,6 +449,7 @@ const Skema = () => {
                     <ArrowRight size={14} className="group-hover:translate-x-1 transition-transform" />
                   </button>
                   
+                  {/* TOMBOL FR.MAPA GABUNGAN */}
                   <button 
                     onClick={() => navigate(`/admin/skema/${selectedSkema.id_skema}/mapa`)}
                     className="flex flex-col items-center justify-center p-3 rounded-xl border border-[#CC6B27]/30 bg-[#CC6B27]/5 text-[#CC6B27] hover:bg-[#CC6B27] hover:text-white transition-all shadow-sm group"
@@ -457,25 +459,6 @@ const Skema = () => {
                     <ArrowRight size={14} className="group-hover:translate-x-1 transition-transform" />
                   </button>
 
-                  <button 
-                    onClick={() => navigate(`/admin/skema/${selectedSkema.id_skema}/mapa01`)}
-                    className="flex flex-col items-center justify-center p-3 rounded-xl border border-teal-200 bg-teal-50 text-teal-700 hover:bg-teal-600 hover:text-white transition-all shadow-sm group"
-                  >
-                    <span className="text-[12px] font-bold mb-1">MAPA 01</span>
-                    <span className="text-[10px] font-medium opacity-80 mb-2">Perencanaan</span>
-                    <ArrowRight size={14} className="group-hover:translate-x-1 transition-transform" />
-                  </button>
-
-                  <button 
-                    onClick={() => navigate(`/admin/skema/${selectedSkema.id_skema}/mapa02`)}
-                    className="flex flex-col items-center justify-center p-3 rounded-xl border border-purple-200 bg-purple-50 text-purple-700 hover:bg-purple-600 hover:text-white transition-all shadow-sm group"
-                  >
-                    <span className="text-[12px] font-bold mb-1">MAPA 02</span>
-                    <span className="text-[10px] font-medium opacity-80 mb-2">Peta Instrumen</span>
-                    <ArrowRight size={14} className="group-hover:translate-x-1 transition-transform" />
-                  </button>
-
-                  {/* TOMBOL KELOMPOK PEKERJAAN DITAMBAHKAN DI SINI */}
                   <button 
                     onClick={() => navigate(`/admin/skema/${selectedSkema.id_skema}/kelompok-pekerjaan`)}
                     className="flex flex-col items-center justify-center p-3 rounded-xl border border-orange-200 bg-orange-50 text-orange-700 hover:bg-orange-600 hover:text-white transition-all shadow-sm group"

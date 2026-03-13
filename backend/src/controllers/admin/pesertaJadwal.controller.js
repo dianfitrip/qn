@@ -1,5 +1,6 @@
-const { PesertaJadwal, User, Jadwal } = require("../../models");
+const { PesertaJadwal, User, Jadwal, ProfileAsesi, Skema } = require("../../models");
 const response = require("../../utils/response.util");
+const { Op } = require("sequelize");
 
 exports.getPesertaByJadwal = async (req, res) => {
   try {

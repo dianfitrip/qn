@@ -225,7 +225,7 @@ const Mapa02 = () => {
         <div className="absolute top-0 right-0 w-64 h-64 bg-white/5 rounded-full blur-3xl -translate-y-1/2 translate-x-1/3"></div>
         <div className="relative z-10">
           <button 
-            onClick={() => navigate('/admin/skema')}
+            onClick={() => navigate('/admin/mapa')}
             className="flex items-center gap-2 text-[#FAFAFA]/70 hover:text-white mb-4 transition-colors text-sm font-medium"
           >
             <ArrowLeft size={16} /> Kembali ke Daftar Skema
@@ -281,14 +281,14 @@ const Mapa02 = () => {
               </thead>
               <tbody className="divide-y divide-slate-100">
                 {listMapping.map((item, index) => {
-                  const unitName = item.UnitKompetensi?.judul_unit || item.unit?.judul_unit || '-';
-                  const unitCode = item.UnitKompetensi?.kode_unit || item.unit?.kode_unit || '';
                   
-                  const pekerjaanName = item.KelompokPekerjaan?.nama_kelompok || 
-                                        item.kelompok_pekerjaan?.nama_kelompok || 
-                                        item.KelompokPekerjaan?.nama_pekerjaan || 
-                                        item.kelompok?.nama_kelompok || 
-                                        '-';
+                  // PERBAIKAN: Menampung semua kemungkinan alias dari backend
+                  const unitObj = item.UnitKompetensi || item.unit_kompetensi || item.unit || item.Unit || {};
+                  const unitName = unitObj.judul_unit || unitObj.nama_unit || '-';
+                  const unitCode = unitObj.kode_unit || '';
+                  
+                  const pekerjaObj = item.KelompokPekerjaan || item.kelompok_pekerjaan || item.kelompok || item.pekerjaan || item.Pekerjaan || {};
+                  const pekerjaanName = pekerjaObj.nama_kelompok || pekerjaObj.nama_pekerjaan || '-';
 
                   return (
                     <tr key={item.id_mapping} className="hover:bg-slate-50 transition-colors">
