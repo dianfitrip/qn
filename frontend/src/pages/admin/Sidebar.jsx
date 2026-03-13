@@ -31,11 +31,10 @@ const Sidebar = () => {
       const isPathActive = (pathsArray) => pathsArray.some(p => path.startsWith(p));
 
       newState.laporan = isPathActive(['/admin/laporan']);
-      // Ditambahkan path bank-soal agar dropdown standar terbuka saat di halaman bank soal
       newState.standar = isPathActive(['/admin/unit-kompetensi', '/admin/skkni', '/admin/bank-soal', '/admin/bank-soal-pg']);
       newState.biaya = isPathActive(['/admin/biaya']);
       newState.event = isPathActive(['/admin/jadwal']);
-      newState.asesi = isPathActive(['/admin/asesi', '/admin/verifikasi-pendaftaran']);
+      newState.asesi = isPathActive(['/admin/asesi', '/admin/verifikasi-pendaftaran', '/admin/asesi/belum-kompeten']);
       newState.asesor = isPathActive(['/admin/asesor']);
       newState.persuratan = isPathActive(['/admin/surat']);
 
@@ -261,9 +260,6 @@ const Sidebar = () => {
             <button className={getSubItemClass(isActive('/admin/jadwal/event-uji'))} onClick={() => handleNav('/admin/jadwal/event-uji')}>
               <span className={`w-1.5 h-1.5 rounded-full mr-3 ${isActive('/admin/jadwal/event-uji') ? 'bg-[#CC6B27]' : 'bg-[#FAFAFA]/40'}`}></span>Event Uji Kompetensi
             </button>
-            <button className={getSubItemClass(isActive('/admin/jadwal/arsip'))} onClick={() => handleNav('/admin/jadwal/arsip')}>
-              <span className={`w-1.5 h-1.5 rounded-full mr-3 ${isActive('/admin/jadwal/arsip') ? 'bg-[#CC6B27]' : 'bg-[#FAFAFA]/40'}`}></span>Arsip Jadwal
-            </button>
           </div>
         )}
 
@@ -299,9 +295,12 @@ const Sidebar = () => {
             <button className={getSubItemClass(isActive('/admin/asesi/kompeten'))} onClick={() => handleNav('/admin/asesi/kompeten')}>
               <span className={`w-1.5 h-1.5 rounded-full mr-3 ${isActive('/admin/asesi/kompeten') ? 'bg-[#CC6B27]' : 'bg-[#FAFAFA]/40'}`}></span>Kompeten
             </button>
-            <button className={getSubItemClass(isActive('/admin/asesi/belum-sertifikat'))} onClick={() => handleNav('/admin/asesi/belum-sertifikat')}>
-              <span className={`w-1.5 h-1.5 rounded-full mr-3 ${isActive('/admin/asesi/belum-sertifikat') ? 'bg-[#CC6B27]' : 'bg-[#FAFAFA]/40'}`}></span>Belum Sertifikat
+            
+            {/* TAMBAHAN MENU ASESI BELUM KOMPETEN */}
+            <button className={getSubItemClass(isActive('/admin/asesi/belum-kompeten'))} onClick={() => handleNav('/admin/asesi/belum-kompeten')}>
+              <span className={`w-1.5 h-1.5 rounded-full mr-3 ${isActive('/admin/asesi/belum-kompeten') ? 'bg-[#CC6B27]' : 'bg-[#FAFAFA]/40'}`}></span>Belum Tersertifikasi
             </button>
+            
             <button className={getSubItemClass(isActive('/admin/asesi/blokir'))} onClick={() => handleNav('/admin/asesi/blokir')}>
               <span className={`w-1.5 h-1.5 rounded-full mr-3 ${isActive('/admin/asesi/blokir') ? 'bg-[#CC6B27]' : 'bg-[#FAFAFA]/40'}`}></span>Diblokir
             </button>
@@ -367,16 +366,6 @@ const Sidebar = () => {
           <div className="flex items-center flex-1">
             <FaEye className="text-lg mr-3" />
             <span className="text-left">Surveillance</span>
-          </div>
-        </button>
-
-        {/* AKUN */}
-        <SectionLabel>Akun</SectionLabel>
-        
-        <button className={getNavItemClass(isActive('/admin/ubah-sandi'))} onClick={() => handleNav('/admin/ubah-sandi')}>
-          <div className="flex items-center flex-1">
-            <FaLock className="text-lg mr-3" />
-            <span className="text-left">Ubah Sandi</span>
           </div>
         </button>
 
