@@ -19,3 +19,41 @@ exports.getPesertaByJadwal = async (req, res) => {
     return response.error(res, err.message);
   }
 };
+
+exports.getAllPesertaGlobal = async (req, res) => {
+  try {
+    const { status } = req.query; // Menangkap query parameter status
+    let whereCondition = {};
+
+    // Filter status jika ada
+    if (status === 'terjadwal') {
+      // Yang dianggap terjadwal biasanya yang sedang dalam proses
+      whereCondition.status_asesmen = { [Op.in]: ['terdaftar', 'pra_asesmen', 'asesmen'] };
+    } else if (status) {
+      // Untuk status 'kompeten' atau 'belum_kompeten'
+      whereCondition.status_asesmen = status;
+    }
+
+    const data = await PesertaJadwal.findAll({
+      where: whereCondition,
+      include: [
+        {
+          model: User,
+          as: "user",
+          include: [{ model: ProfileAsesi }] // Ambil data NIK dan nama dari profile
+        },
+        {
+          model: Jadwal,
+          as: "jadwal",
+          include: [{ model: Skema, as: "skema" }] // Ambil nama skema
+        }
+      ],
+      order: [['id_peserta', 'DESC']]
+    });
+
+    return response.success(res, "Data peserta berhasil diambil", data);
+  } catch (err) {
+    console.error(err);
+    return response.error(res, err.message);
+  }
+};

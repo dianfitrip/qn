@@ -146,6 +146,7 @@ router.get("/banding", bandingController.getAllBanding);
 router.put("/banding/:id", bandingController.updateStatusBanding);
 
 router.get( "/jadwal/:id_jadwal/peserta", pesertaJadwalController.getPesertaByJadwal);
+router.get("/peserta-jadwal/global", pesertaJadwalController.getAllPesertaGlobal);
 
 router.post("/unit-kompetensi", unitKompetensiController.create);
 router.get("/unit-kompetensi", unitKompetensiController.getAll);

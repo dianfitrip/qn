@@ -1,14 +1,37 @@
 import React, { useState, useEffect } from "react";
 import { FaSearch, FaCalendarAlt } from "react-icons/fa";
+import api from "../../services/api";
 
 const AsesiTerjadwal = () => {
   const [asesiList, setAsesiList] = useState([]);
   const [searchQuery, setSearchQuery] = useState("");
+  const [loading, setLoading] = useState(true);
 
-  // Nanti diisi dengan fetch ke backend (misal: /api/admin/asesi/terjadwal)
+  const fetchAsesiTerjadwal = async () => {
+    try {
+      setLoading(true);
+      // Memanggil endpoint global dengan filter 'terjadwal'
+      const res = await api.get('/admin/peserta-jadwal/global?status=terjadwal');
+      setAsesiList(res.data.data || []);
+    } catch (error) {
+      console.error("Gagal mengambil data:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
-    // Simulasi data
+    fetchAsesiTerjadwal();
   }, []);
+
+  const filteredData = asesiList.filter((item) => {
+    const nik = item.user?.ProfileAsesi?.nik || item.user?.profileAsesi?.nik || "";
+    const nama = item.user?.nama_lengkap || item.user?.ProfileAsesi?.nama_lengkap || item.user?.email || "";
+    return (
+      nik.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      nama.toLowerCase().includes(searchQuery.toLowerCase())
+    );
+  });
 
   return (
     <div className="p-6">
@@ -24,7 +47,7 @@ const AsesiTerjadwal = () => {
           <input
             type="text"
             placeholder="Cari NIK atau Nama Asesi..."
-            className="w-full pl-10 pr-4 py-2 border rounded-lg focus:outline-none focus:border-[#CC6B27]"
+            className="w-full pl-10 pr-4 py-2 border rounded-lg focus:outline-none focus:border-[#CC6B27] focus:ring-1 focus:ring-[#CC6B27]"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
           />
@@ -36,29 +59,39 @@ const AsesiTerjadwal = () => {
         <table className="w-full text-left border-collapse">
           <thead>
             <tr className="bg-[#071E3D] text-[#FAFAFA]">
-              <th className="p-3 border-b">No</th>
+              <th className="p-3 border-b text-center w-12">No</th>
               <th className="p-3 border-b">NIK</th>
               <th className="p-3 border-b">Nama Lengkap</th>
               <th className="p-3 border-b">Nama Kegiatan (Jadwal)</th>
               <th className="p-3 border-b">Status</th>
-              <th className="p-3 border-b">Aksi</th>
             </tr>
           </thead>
           <tbody>
-            <tr className="hover:bg-gray-50">
-              <td className="p-3 border-b">1</td>
-              <td className="p-3 border-b">3201000000000001</td>
-              <td className="p-3 border-b font-medium text-[#182D4A]">Asesi Satu</td>
-              <td className="p-3 border-b">Asesmen Web Developer - Gelombang 1</td>
-              <td className="p-3 border-b">
-                <span className="px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-xs font-semibold">
-                  Pra Asesmen
-                </span>
-              </td>
-              <td className="p-3 border-b">
-                <button className="text-sm bg-[#CC6B27] text-white px-3 py-1 rounded hover:bg-orange-700">Proses</button>
-              </td>
-            </tr>
+            {loading ? (
+              <tr>
+                <td colSpan="5" className="text-center p-6 text-gray-500">Memuat data...</td>
+              </tr>
+            ) : filteredData.length === 0 ? (
+              <tr>
+                <td colSpan="5" className="text-center p-6 text-gray-500">Belum ada data asesi terjadwal.</td>
+              </tr>
+            ) : (
+              filteredData.map((item, index) => (
+                <tr key={item.id_peserta} className="hover:bg-gray-50">
+                  <td className="p-3 border-b text-center">{index + 1}</td>
+                  <td className="p-3 border-b">{item.user?.ProfileAsesi?.nik || item.user?.profileAsesi?.nik || "-"}</td>
+                  <td className="p-3 border-b font-medium text-[#182D4A]">
+                    {item.user?.nama_lengkap || item.user?.ProfileAsesi?.nama_lengkap || item.user?.email || "-"}
+                  </td>
+                  <td className="p-3 border-b">{item.jadwal?.nama_kegiatan || "-"}</td>
+                  <td className="p-3 border-b">
+                    <span className="px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-xs font-semibold capitalize">
+                      {item.status_asesmen.replace('_', ' ')}
+                    </span>
+                  </td>
+                </tr>
+              ))
+            )}
           </tbody>
         </table>
       </div>
