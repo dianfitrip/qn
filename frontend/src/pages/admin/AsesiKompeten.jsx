@@ -55,6 +55,21 @@ const AsesiKompeten = () => {
     setCurrentPage(1);
   }, [searchQuery, entriesPerPage]);
 
+  // ==========================================
+  // FUNGSI HANDLER UNTUK TOMBOL DETAIL & CETAK
+  // ==========================================
+  const handleDetail = (id_peserta) => {
+    // TODO: Sesuaikan dengan routing/navigasi kamu
+    console.log("Melihat detail untuk peserta ID:", id_peserta);
+    alert(`Melihat detail untuk ID: ${id_peserta}`);
+  };
+
+  const handleCetak = (id_peserta) => {
+    // TODO: Sesuaikan dengan endpoint API untuk download PDF
+    console.log("Mencetak sertifikat untuk peserta ID:", id_peserta);
+    alert(`Mencetak sertifikat untuk ID: ${id_peserta}`);
+  };
+
   return (
     <div className="p-6">
       {/* Header Halaman */}
@@ -151,12 +166,14 @@ const AsesiKompeten = () => {
                     <td className="p-3 text-center">
                       <div className="flex justify-center gap-2">
                         <button 
+                          onClick={() => handleDetail(item.id_peserta)} // <-- PERUBAHAN DI SINI
                           className="flex items-center gap-1 bg-[#182D4A] text-white px-2.5 py-1.5 rounded shadow-sm hover:bg-[#0a1424] transition-colors text-xs"
                           title="Lihat Detail"
                         >
                           <FaEye /> Detail
                         </button>
                         <button 
+                          onClick={() => handleCetak(item.id_peserta)} // <-- PERUBAHAN DI SINI
                           className="flex items-center gap-1 bg-[#CC6B27] text-white px-2.5 py-1.5 rounded shadow-sm hover:bg-[#b0581e] transition-colors text-xs"
                           title="Cetak Sertifikat"
                         >
