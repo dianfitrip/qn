@@ -429,7 +429,6 @@ const Skema = () => {
                 <h4 className="text-[14px] font-bold text-[#071E3D] mb-4 flex items-center gap-2">
                   Navigasi Instrumen & Asesmen
                 </h4>
-                {/* GRID DIUBAH JADI grid-cols-4 KARENA TOMBOL BERKURANG DARI 6 JADI 4 */}
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                   <button 
                     onClick={() => navigate(`/admin/skema/${selectedSkema.id_skema}/ia01`)}
@@ -449,7 +448,7 @@ const Skema = () => {
                     <ArrowRight size={14} className="group-hover:translate-x-1 transition-transform" />
                   </button>
                   
-                  {/* TOMBOL FR.MAPA GABUNGAN */}
+                  {/* TOMBOL PINTAR: Mengarah ke route /admin/skema/:id/mapa */}
                   <button 
                     onClick={() => navigate(`/admin/skema/${selectedSkema.id_skema}/mapa`)}
                     className="flex flex-col items-center justify-center p-3 rounded-xl border border-[#CC6B27]/30 bg-[#CC6B27]/5 text-[#CC6B27] hover:bg-[#CC6B27] hover:text-white transition-all shadow-sm group"

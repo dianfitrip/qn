@@ -224,11 +224,13 @@ const Mapa02 = () => {
       <div className="bg-[#071E3D] rounded-2xl shadow-lg p-6 mb-6 text-white relative overflow-hidden">
         <div className="absolute top-0 right-0 w-64 h-64 bg-white/5 rounded-full blur-3xl -translate-y-1/2 translate-x-1/3"></div>
         <div className="relative z-10">
+          
+          {/* PERBAIKAN: Tombol Kembali menggunakan navigate(-1) */}
           <button 
-            onClick={() => navigate('/admin/mapa')}
+            onClick={() => navigate(-1)}
             className="flex items-center gap-2 text-[#FAFAFA]/70 hover:text-white mb-4 transition-colors text-sm font-medium"
           >
-            <ArrowLeft size={16} /> Kembali ke Daftar Skema
+            <ArrowLeft size={16} /> Kembali
           </button>
           
           <div className="flex items-center gap-4 mb-2">
@@ -282,7 +284,7 @@ const Mapa02 = () => {
               <tbody className="divide-y divide-slate-100">
                 {listMapping.map((item, index) => {
                   
-                  // PERBAIKAN: Menampung semua kemungkinan alias dari backend
+                  // PERBAIKAN ALIAS (Mencegah tampilan minus/strip)
                   const unitObj = item.UnitKompetensi || item.unit_kompetensi || item.unit || item.Unit || {};
                   const unitName = unitObj.judul_unit || unitObj.nama_unit || '-';
                   const unitCode = unitObj.kode_unit || '';

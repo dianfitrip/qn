@@ -33,7 +33,6 @@ import AsesiTerjadwal from "../pages/admin/AsesiTerjadwal";
 import AsesiKompeten from "../pages/admin/AsesiKompeten";
 import PesertaJadwal from "../pages/admin/PesertaJadwal";
 import KelompokPekerjaan from "../pages/admin/KelompokPekerjaan";
-import AsesiBelumKompeten from "../pages/admin/AsesiBelumKompeten";
 
 
 /* PROTECTED */
@@ -70,7 +69,7 @@ export default function AdminRoutes() {
           <Route path="skema/:id/ia01" element={<IA01Observasi />} />
           <Route path="skema/:id/ia03" element={<IA03Pertanyaan />} />
           <Route path="skema/:id/mapa" element={<Mapa />} />
-          
+          <Route path="mapa" element={<Mapa />} />
           <Route path="mapa01/:id" element={<Mapa01 />} /> 
           <Route path="mapa02/:id" element={<Mapa02 />} />
 
@@ -97,7 +96,6 @@ export default function AdminRoutes() {
           <Route path="asesor/statistik" element={<StatistikWilayah />} />
           <Route path="jadwal/:id_jadwal/peserta" element={<PesertaJadwal />} />
           <Route path="skema/:id/kelompok-pekerjaan" element={<KelompokPekerjaan />} />
-          <Route path="/asesi/belum-kompeten" element={<AsesiBelumKompeten />} />
         </Route>
       </Routes>
     </ProtectedAdmin>

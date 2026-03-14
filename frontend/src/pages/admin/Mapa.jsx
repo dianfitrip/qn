@@ -1,20 +1,23 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom'; // DITAMBAHKAN useParams
 import Swal from 'sweetalert2';
 import api from "../../services/api";
 import { 
   Search, Plus, Edit2, Trash2, X, Save, FileText, 
-  Loader2, Settings, User, BookOpen, ExternalLink, CheckCircle, Clock, List
-} from 'lucide-react';
+  Loader2, Settings, User, BookOpen, ExternalLink, CheckCircle, Clock, List, ArrowLeft
+} from 'lucide-react'; // DITAMBAHKAN ArrowLeft
 
 const Mapa = () => {
   const navigate = useNavigate();
+  // MENANGKAP ID SKEMA DARI URL (Contoh: /admin/skema/2/mapa -> id = 2)
+  const { id } = useParams(); 
 
   // --- STATE UTAMA ---
   const [data, setData] = useState([]);
   const [skemaList, setSkemaList] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
+  const [skemaInfo, setSkemaInfo] = useState(null); // Simpan info skema untuk judul
   
   // State Modal Master MAPA
   const [showModal, setShowModal] = useState(false);
@@ -23,7 +26,7 @@ const Mapa = () => {
 
   // --- FORM STATE MASTER MAPA ---
   const initialFormState = {
-    id_skema: '',
+    id_skema: id ? parseInt(id) : '', // Otomatis terisi Skema tsb jika ada ID di URL
     versi: '',
     jenis: 'MAPA-01',
     status: 'draft'
@@ -39,9 +42,23 @@ const Mapa = () => {
       const skemaData = skemaRes.data?.data || skemaRes.data || [];
       setSkemaList(skemaData);
 
-      // Fetch MAPA (Sudah include Skema dan User/Creator dari Backend)
+      // Cari nama skema untuk ditampilkan di Header (jika diakses dari dalam Skema)
+      if (id) {
+        const currentSkema = skemaData.find(s => s.id_skema === parseInt(id));
+        if (currentSkema) setSkemaInfo(currentSkema);
+      }
+
+      // Fetch Data MAPA
       const response = await api.get('/admin/mapa');
-      const mapaData = response.data?.data || response.data || [];
+      let mapaData = response.data?.data || response.data || [];
+      
+      // --- FILTERING UTAMA ---
+      // Jika halaman ini diakses dari Detail Skema (ada ID di URL),
+      // maka saring data MAPA hanya untuk skema tersebut!
+      if (id) {
+        mapaData = mapaData.filter(item => item.id_skema === parseInt(id));
+      }
+
       setData(mapaData);
     } catch (error) {
       console.error("Fetch error:", error);
@@ -53,7 +70,7 @@ const Mapa = () => {
 
   useEffect(() => {
     fetchData();
-  }, []);
+  }, [id]); // Akan fetch ulang jika ID di URL berubah
 
   // --- HANDLERS ---
   const handleInputChange = (e) => {
@@ -135,13 +152,17 @@ const Mapa = () => {
     }
   };
 
-  // Pencarian
+  // Pencarian (Anti Crash)
   const filteredData = data.filter(item => {
     const term = searchTerm.toLowerCase();
+    const judul = item.skema?.judul_skema || '';
+    const versi = item.versi || '';
+    const jenis = item.jenis || '';
+    
     return (
-      item.skema?.judul_skema?.toLowerCase().includes(term) ||
-      item.versi?.toLowerCase().includes(term) ||
-      item.jenis?.toLowerCase().includes(term)
+      judul.toLowerCase().includes(term) ||
+      versi.toLowerCase().includes(term) ||
+      jenis.toLowerCase().includes(term)
     );
   });
 
@@ -151,13 +172,21 @@ const Mapa = () => {
       {/* HEADER PAGE */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-white p-6 rounded-xl border border-[#071E3D]/10 shadow-sm">
         <div>
-          <h2 className="text-[22px] font-bold text-[#071E3D] m-0 mb-1">Manajemen Dokumen MAPA</h2>
+          {/* Jika diakses lewat Skema, tampilkan tombol kembali */}
+          {id && (
+            <button onClick={() => navigate('/admin/skema')} className="flex items-center gap-1.5 text-[12px] font-bold text-[#182D4A]/60 hover:text-[#CC6B27] mb-2 transition-colors">
+              <ArrowLeft size={14}/> Kembali ke Detail Skema
+            </button>
+          )}
+          <h2 className="text-[22px] font-bold text-[#071E3D] m-0 mb-1">
+             {id ? `Dokumen MAPA: ${skemaInfo?.judul_skema || 'Memuat...'}` : 'Manajemen Dokumen MAPA'}
+          </h2>
           <p className="text-[14px] text-[#182D4A] m-0">Kelola master dokumen Merencanakan Aktivitas dan Proses Asesmen.</p>
         </div>
         <button 
           className="px-5 py-2.5 rounded-lg font-bold bg-[#CC6B27] text-white hover:bg-[#a8561f] shadow-sm hover:shadow-md transition-all flex items-center justify-center gap-2 text-[13px]"
           onClick={() => {
-            setFormData(initialFormState);
+            setFormData(initialFormState); // Jika dklik saat di dalam skema, dropdown otomatis terpilih!
             setIsEditMode(false);
             setShowModal(true);
           }}
@@ -211,7 +240,9 @@ const Mapa = () => {
                 <tr>
                   <td colSpan="5" className="py-16 text-center">
                     <FileText size={48} className="text-[#071E3D]/20 mx-auto mb-3"/>
-                    <p className="text-[#182D4A] font-medium text-[14px]">Belum ada dokumen MAPA ditemukan.</p>
+                    <p className="text-[#182D4A] font-medium text-[14px]">
+                      {id ? "Dokumen MAPA untuk skema ini belum ada." : "Belum ada dokumen MAPA ditemukan."}
+                    </p>
                   </td>
                 </tr>
               ) : (
@@ -265,24 +296,24 @@ const Mapa = () => {
                     <td className="py-4 px-4 text-center">
                       <div className="flex flex-col gap-2">
                         
-                        {/* INI BAGIAN YANG DITAMBAHKAN SESUAI REQUEST: TOMBOL DINAMIS */}
+                        {/* TOMBOL DINAMIS BERDASARKAN JENIS MAPA */}
                         <div className="flex justify-center">
                           {item.jenis === 'MAPA-01' ? (
-                             <button 
-                               onClick={() => handleOpenMapa(item)} 
-                               className="px-3 py-1.5 bg-[#CC6B27]/10 text-[#CC6B27] hover:bg-[#CC6B27] hover:text-white rounded-lg text-[11px] font-bold transition-colors flex items-center gap-1.5 border border-[#CC6B27]/20 w-full justify-center"
-                               title="Buka Form MAPA-01"
-                             >
-                               <FileText size={14} /> Isi MAPA-01
-                             </button>
+                            <button 
+                              onClick={() => handleOpenMapa(item)} 
+                              className="px-3 py-1.5 bg-[#CC6B27]/10 text-[#CC6B27] hover:bg-[#CC6B27] hover:text-white rounded-lg text-[11px] font-bold transition-colors flex items-center gap-1.5 border border-[#CC6B27]/20 w-full justify-center"
+                              title="Buka / Isi Form MAPA-01"
+                            >
+                              <FileText size={14} /> Isi MAPA-01
+                            </button>
                           ) : item.jenis === 'MAPA-02' ? (
-                             <button 
-                               onClick={() => handleOpenMapa(item)} 
-                               className="px-3 py-1.5 bg-[#182D4A]/10 text-[#182D4A] hover:bg-[#071E3D] hover:text-white rounded-lg text-[11px] font-bold transition-colors flex items-center gap-1.5 border border-[#182D4A]/20 w-full justify-center"
-                               title="Buka Form MAPA-02"
-                             >
-                               <List size={14} /> Isi MAPA-02
-                             </button>
+                            <button 
+                              onClick={() => handleOpenMapa(item)} 
+                              className="px-3 py-1.5 bg-[#182D4A]/10 text-[#182D4A] hover:bg-[#071E3D] hover:text-white rounded-lg text-[11px] font-bold transition-colors flex items-center gap-1.5 border border-[#182D4A]/20 w-full justify-center"
+                              title="Buka / Isi Form MAPA-02"
+                            >
+                              <List size={14} /> Isi MAPA-02
+                            </button>
                           ) : null}
                         </div>
                         
