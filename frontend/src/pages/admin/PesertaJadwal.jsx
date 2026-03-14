@@ -45,9 +45,13 @@ const PesertaJadwal = () => {
     setShowDetailModal(true);
   };
 
+  // Filter pencarian yang sudah disesuaikan agar bisa mencari nama & NIK
   const filteredData = pesertaList.filter(item => 
     item.user?.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    item.nomor_peserta?.toLowerCase().includes(searchTerm.toLowerCase())
+    item.nomor_peserta?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    item.user?.nama_lengkap?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    item.user?.ProfileAsesi?.nik?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    item.jadwal?.skema?.nama_skema?.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   // Helper untuk format tanggal
@@ -83,7 +87,7 @@ const PesertaJadwal = () => {
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
           <input 
             type="text" 
-            placeholder="Cari berdasarkan email atau nomor peserta..." 
+            placeholder="Cari nama, NIK, skema, atau email..." 
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:border-[#CC6B27] focus:ring-1 focus:ring-[#CC6B27] text-sm"
@@ -98,8 +102,9 @@ const PesertaJadwal = () => {
             <thead>
               <tr className="bg-[#071E3D] text-white text-[13px]">
                 <th className="p-4 font-semibold w-12 text-center">No</th>
+                <th className="p-4 font-semibold">Nama / NIK</th>
+                <th className="p-4 font-semibold">Skema</th>
                 <th className="p-4 font-semibold">Nomor Peserta</th>
-                <th className="p-4 font-semibold">Email / ID User</th>
                 <th className="p-4 font-semibold">Status Asesmen</th>
                 <th className="p-4 font-semibold text-center">Nilai Akhir</th>
                 <th className="p-4 font-semibold text-center">Aksi</th>
@@ -108,14 +113,14 @@ const PesertaJadwal = () => {
             <tbody>
               {loading ? (
                 <tr>
-                  <td colSpan="6" className="p-8 text-center">
+                  <td colSpan="7" className="p-8 text-center">
                     <Loader2 className="animate-spin mx-auto text-[#CC6B27] mb-2" size={24} />
                     <p className="text-gray-500 text-sm">Memuat data peserta...</p>
                   </td>
                 </tr>
               ) : filteredData.length === 0 ? (
                 <tr>
-                  <td colSpan="6" className="p-8 text-center text-gray-500 text-sm">
+                  <td colSpan="7" className="p-8 text-center text-gray-500 text-sm">
                     Belum ada peserta yang terdaftar pada jadwal ini.
                   </td>
                 </tr>
@@ -123,13 +128,17 @@ const PesertaJadwal = () => {
                 filteredData.map((row, index) => (
                   <tr key={row.id_peserta} className="border-b border-gray-50 hover:bg-gray-50 transition-colors text-[13px]">
                     <td className="p-4 text-center text-gray-600">{index + 1}</td>
-                    <td className="p-4 font-medium text-[#182D4A]">{row.nomor_peserta || '-'}</td>
-                    <td className="p-4 text-gray-600">
-                      <div className="flex items-center gap-2">
-                        <User size={14} />
-                        {row.user?.email || `User ID: ${row.id_user}`}
-                      </div>
+                    
+                    {/* Kolom Nama & NIK */}
+                    <td className="p-4">
+                      <div className="font-medium text-[#182D4A]">{row.user?.nama_lengkap || '-'}</div>
+                      <div className="text-gray-500 text-xs">NIK: {row.user?.ProfileAsesi?.nik || '-'}</div>
                     </td>
+                    
+                    {/* Kolom Skema */}
+                    <td className="p-4 text-gray-600">{row.jadwal?.skema?.nama_skema || '-'}</td>
+                    
+                    <td className="p-4 font-medium text-[#182D4A]">{row.nomor_peserta || '-'}</td>
                     <td className="p-4">
                       <span className={`px-3 py-1 rounded-full text-xs font-semibold capitalize
                         ${row.status_asesmen === 'kompeten' ? 'bg-green-100 text-green-700' : 
@@ -184,17 +193,28 @@ const PesertaJadwal = () => {
                 {/* Info Utama */}
                 <div className="grid grid-cols-2 gap-4">
                   <div className="bg-gray-50 p-3 rounded-lg border border-gray-100">
-                    <p className="text-[11px] text-gray-500 uppercase font-bold tracking-wider mb-1">Nomor Peserta</p>
-                    <p className="font-bold text-[#182D4A] text-[14px]">{selectedPeserta.nomor_peserta || 'Belum di-generate'}</p>
+                    <p className="text-[11px] text-gray-500 uppercase font-bold tracking-wider mb-1">Nama Asesi</p>
+                    <p className="font-bold text-[#182D4A] text-[14px]">{selectedPeserta.user?.nama_lengkap || '-'}</p>
                   </div>
                   <div className="bg-gray-50 p-3 rounded-lg border border-gray-100">
-                    <p className="text-[11px] text-gray-500 uppercase font-bold tracking-wider mb-1">Email Peserta</p>
-                    <p className="font-bold text-[#182D4A] text-[14px]">{selectedPeserta.user?.email || '-'}</p>
+                    <p className="text-[11px] text-gray-500 uppercase font-bold tracking-wider mb-1">NIK Asesi</p>
+                    <p className="font-bold text-[#182D4A] text-[14px]">{selectedPeserta.user?.ProfileAsesi?.nik || '-'}</p>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="bg-gray-50 p-3 rounded-lg border border-gray-100">
+                    <p className="text-[11px] text-gray-500 uppercase font-bold tracking-wider mb-1">Skema</p>
+                    <p className="font-bold text-[#182D4A] text-[14px]">{selectedPeserta.jadwal?.skema?.nama_skema || '-'}</p>
+                  </div>
+                  <div className="bg-gray-50 p-3 rounded-lg border border-gray-100">
+                    <p className="text-[11px] text-gray-500 uppercase font-bold tracking-wider mb-1">Nomor Peserta</p>
+                    <p className="font-bold text-[#182D4A] text-[14px]">{selectedPeserta.nomor_peserta || 'Belum di-generate'}</p>
                   </div>
                 </div>
 
                 {/* Status & Nilai */}
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-2 gap-4 mt-2">
                   <div>
                     <p className="text-[12px] text-gray-500 font-semibold mb-1">Status Asesmen</p>
                     <span className={`inline-block px-3 py-1 rounded-md text-xs font-bold capitalize
@@ -210,7 +230,7 @@ const PesertaJadwal = () => {
                   </div>
                 </div>
 
-                <hr className="border-gray-100" />
+                <hr className="border-gray-100 my-2" />
 
                 {/* Info Waktu */}
                 <div>
