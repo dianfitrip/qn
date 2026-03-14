@@ -48,8 +48,9 @@ const Mapa = () => {
         if (currentSkema) setSkemaInfo(currentSkema);
       }
 
-      // Fetch Data MAPA
-      const response = await api.get('/admin/mapa');
+      // --- PERBAIKAN CACHE CHROME DI SINI ---
+      // Menambahkan timestamp agar URL selalu dianggap baru oleh Chrome
+      const response = await api.get(`/admin/mapa?timestamp=${new Date().getTime()}`);
       let mapaData = response.data?.data || response.data || [];
       
       // --- FILTERING UTAMA ---
