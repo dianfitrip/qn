@@ -37,12 +37,14 @@ const accountController = require("../controllers/admin/account.controller");
 
 router.use(authMiddleware, roleMiddleware.adminOnly);
 
+
 router.get("/surveillance", ctrl.getAllSurveillance);
 router.put("/surveillance/:id/status", ctrl.updateStatusSurveillance);
 router.get("/surveillance/export", ctrl.exportSurveillance);
 
 router.get("/profile", adminProfile.getProfile);
 router.put("/profile", adminProfile.updateProfile);
+router.put('/profile', authMiddleware, upload.single('foto'), profileController.updateProfile);
 
 router.post( "/dokumen-mutu", upload, dokumenMutuController.createDokumen);
 router.put( "/dokumen-mutu/:id", upload, dokumenMutuController.updateDokumen);

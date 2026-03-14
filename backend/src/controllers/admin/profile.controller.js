@@ -20,9 +20,16 @@ exports.getProfile = async (req, res) => {
 exports.updateProfile = async (req, res) => {
   try {
     const id_user = req.user.id_user;
-    const bodyData = req.body;
+    
+    // 1. Buat salinan (copy) dari req.body agar bisa dimanipulasi
+    const bodyData = { ...req.body };
 
-    // Pastikan id_user dimasukkan ke data yang akan disimpan
+    // 2. CEK FOTO: Jika ada file foto yang dikirim dari frontend, tambahkan ke bodyData
+    if (req.file) {
+      bodyData.foto = req.file.filename; 
+    }
+
+    // Pastikan id_user dimasukkan ke data yang akan disimpan (untuk keperluan Create)
     const payload = { ...bodyData, id_user: id_user };
 
     // Cek apakah data profil untuk user ini sudah ada di database
