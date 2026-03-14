@@ -36,16 +36,39 @@ const AsesiKompeten = () => {
     fetchAsesiKompeten();
   }, []);
 
+  // ==========================================
+  // HELPER FUNCTIONS: ANTI-ERROR & AUTO-DETECT COLUMNS
+  // ==========================================
+  const getAsesiProfile = (user) => {
+    if (!user) return {};
+    return user.ProfileAsesi || user.profileAsesi || user.profile_asesi || user.Profile_Asesi || {};
+  };
+
+  const getJadwal = (item) => {
+    if (!item) return {};
+    return item.jadwal || item.Jadwal || {};
+  };
+
+  const getSkema = (jadwalObj) => {
+    if (!jadwalObj) return {};
+    return jadwalObj.skema || jadwalObj.Skema || {};
+  };
+
   // Logika Filter (Search)
   const filteredData = asesiList.filter((item) => {
-    const nik = item.user?.ProfileAsesi?.nik || item.user?.profileAsesi?.nik || "";
-    const nama = item.user?.nama_lengkap || item.user?.ProfileAsesi?.nama_lengkap || item.user?.email || "";
-    const skema = item.jadwal?.skema?.nama_skema || "";
+    const profile = getAsesiProfile(item.user);
+    const jadwalObj = getJadwal(item);
+    const skemaObj = getSkema(jadwalObj);
+
+    const nik = profile.nik || "";
+    const nama = profile.nama_lengkap || item.user?.nama_lengkap || item.user?.email || "";
+    // Deteksi judul_skema atau nama_skema
+    const skemaTitle = skemaObj.judul_skema || skemaObj.nama_skema || "";
     
     return (
       nik.toLowerCase().includes(searchQuery.toLowerCase()) ||
       nama.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      skema.toLowerCase().includes(searchQuery.toLowerCase())
+      skemaTitle.toLowerCase().includes(searchQuery.toLowerCase())
     );
   });
 
@@ -89,7 +112,8 @@ const AsesiKompeten = () => {
     }
     
     // TODO: Ganti dengan pemanggilan API (misal: multipart/form-data axios/api post)
-    const namaAsesi = selectedUpload.user?.nama_lengkap || selectedUpload.user?.email || "Asesi";
+    const profile = getAsesiProfile(selectedUpload.user);
+    const namaAsesi = profile.nama_lengkap || selectedUpload.user?.nama_lengkap || selectedUpload.user?.email || "Asesi";
     alert(`Sertifikat untuk ${namaAsesi} berhasil diunggah! (Ini masih simulasi UI)`);
     closeUploadModal();
   };
@@ -152,6 +176,7 @@ const AsesiKompeten = () => {
                 <th className="p-3 border-b text-center w-12 font-semibold">No</th>
                 <th className="p-3 border-b font-semibold">NIK</th>
                 <th className="p-3 border-b font-semibold">Nama Lengkap</th>
+                <th className="p-3 border-b font-semibold">Jadwal / Kegiatan</th>
                 <th className="p-3 border-b font-semibold">Skema</th>
                 <th className="p-3 border-b font-semibold text-center">Nilai</th>
                 <th className="p-3 border-b font-semibold text-center">Aksi</th>
@@ -160,49 +185,62 @@ const AsesiKompeten = () => {
             <tbody>
               {loading ? (
                 <tr>
-                  <td colSpan="6" className="text-center p-8 text-gray-500">Memuat data...</td>
+                  <td colSpan="7" className="text-center p-8 text-gray-500">Memuat data...</td>
                 </tr>
               ) : currentItems.length === 0 ? (
                 <tr>
-                  <td colSpan="6" className="text-center p-8 text-gray-500">Tidak ada entri yang cocok.</td>
+                  <td colSpan="7" className="text-center p-8 text-gray-500">Tidak ada entri yang cocok.</td>
                 </tr>
               ) : (
-                currentItems.map((item, index) => (
-                  <tr key={item.id_peserta || index} className="hover:bg-gray-50 text-sm border-b border-gray-100 transition-colors">
-                    <td className="p-3 text-center text-gray-600">{indexOfFirstItem + index + 1}</td>
-                    <td className="p-3 text-gray-700">{item.user?.ProfileAsesi?.nik || item.user?.profileAsesi?.nik || "-"}</td>
-                    <td className="p-3 font-medium text-[#182D4A]">
-                      {item.user?.nama_lengkap || item.user?.ProfileAsesi?.nama_lengkap || item.user?.email || "-"}
-                    </td>
-                    <td className="p-3 text-gray-600 text-xs">{item.jadwal?.skema?.nama_skema || "-"}</td>
-                    <td className="p-3 text-center font-bold text-green-600">{item.nilai_akhir || "-"}</td>
-                    <td className="p-3 text-center">
-                      <div className="flex justify-center flex-wrap gap-2">
-                        <button 
-                          onClick={() => handleDetail(item)}
-                          className="flex items-center gap-1 bg-[#182D4A] text-white px-2.5 py-1.5 rounded shadow-sm hover:bg-[#0a1424] transition-colors text-xs"
-                          title="Lihat Detail Asesi"
-                        >
-                          <FaEye /> Detail
-                        </button>
-                        <button 
-                          onClick={() => handleLihatJadwal(item)}
-                          className="flex items-center gap-1 bg-blue-600 text-white px-2.5 py-1.5 rounded shadow-sm hover:bg-blue-800 transition-colors text-xs"
-                          title="Lihat Detail Jadwal"
-                        >
-                          <FaCalendarAlt /> Jadwal
-                        </button>
-                        <button 
-                          onClick={() => handleUnggahClick(item)}
-                          className="flex items-center gap-1 bg-[#CC6B27] text-white px-2.5 py-1.5 rounded shadow-sm hover:bg-[#b0581e] transition-colors text-xs"
-                          title="Unggah Sertifikat"
-                        >
-                          <FaUpload /> Unggah
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))
+                currentItems.map((item, index) => {
+                  const profile = getAsesiProfile(item.user);
+                  const jadwalObj = getJadwal(item);
+                  const skemaObj = getSkema(jadwalObj);
+
+                  return (
+                    <tr key={item.id_peserta || index} className="hover:bg-gray-50 text-sm border-b border-gray-100 transition-colors">
+                      <td className="p-3 text-center text-gray-600">{indexOfFirstItem + index + 1}</td>
+                      <td className="p-3 text-gray-700">{profile.nik || "-"}</td>
+                      <td className="p-3 font-medium text-[#182D4A]">
+                        {profile.nama_lengkap || item.user?.nama_lengkap || item.user?.email || "-"}
+                      </td>
+                      <td className="p-3 text-gray-600 text-xs">
+                        {/* Auto detect nama_jadwal atau nama_kegiatan */}
+                        {jadwalObj.nama_jadwal || jadwalObj.nama_kegiatan || "-"}
+                      </td>
+                      <td className="p-3 text-gray-600 text-xs font-medium">
+                        {/* Auto detect judul_skema atau nama_skema */}
+                        {skemaObj.judul_skema || skemaObj.nama_skema || "-"}
+                      </td>
+                      <td className="p-3 text-center font-bold text-green-600">{item.nilai_akhir || "-"}</td>
+                      <td className="p-3 text-center">
+                        <div className="flex justify-center flex-wrap gap-2">
+                          <button 
+                            onClick={() => handleDetail(item)}
+                            className="flex items-center gap-1 bg-[#182D4A] text-white px-2.5 py-1.5 rounded shadow-sm hover:bg-[#0a1424] transition-colors text-xs"
+                            title="Lihat Detail Asesi"
+                          >
+                            <FaEye /> Detail
+                          </button>
+                          <button 
+                            onClick={() => handleLihatJadwal(item)}
+                            className="flex items-center gap-1 bg-blue-600 text-white px-2.5 py-1.5 rounded shadow-sm hover:bg-blue-800 transition-colors text-xs"
+                            title="Lihat Detail Jadwal"
+                          >
+                            <FaCalendarAlt /> Jadwal
+                          </button>
+                          <button 
+                            onClick={() => handleUnggahClick(item)}
+                            className="flex items-center gap-1 bg-[#CC6B27] text-white px-2.5 py-1.5 rounded shadow-sm hover:bg-[#b0581e] transition-colors text-xs"
+                            title="Unggah Sertifikat"
+                          >
+                            <FaUpload /> Unggah
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })
               )}
             </tbody>
           </table>
@@ -244,156 +282,170 @@ const AsesiKompeten = () => {
       {/* ========================================== */}
       {/* 1. MODAL DETAIL ASESI */}
       {/* ========================================== */}
-      {selectedDetail && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4">
-          <div className="bg-white rounded-lg shadow-xl w-full max-w-2xl overflow-hidden animate-fade-in">
-            <div className="flex justify-between items-center bg-[#071E3D] text-white p-4">
-              <h2 className="text-lg font-bold flex items-center gap-2">
-                <FaUserCheck className="text-[#CC6B27]" /> Detail Kelulusan Asesi
-              </h2>
-              <button onClick={closeDetailModal} className="text-gray-300 hover:text-white transition-colors">
-                <FaTimes size={20} />
-              </button>
-            </div>
-            <div className="p-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-y-4 gap-x-6 text-sm">
-                <div>
-                  <label className="block text-gray-500 mb-1 text-xs uppercase tracking-wider">NIK</label>
-                  <p className="font-semibold text-gray-800">{selectedDetail.user?.ProfileAsesi?.nik || selectedDetail.user?.profileAsesi?.nik || "-"}</p>
-                </div>
-                <div>
-                  <label className="block text-gray-500 mb-1 text-xs uppercase tracking-wider">Nama Lengkap</label>
-                  <p className="font-semibold text-gray-800">{selectedDetail.user?.nama_lengkap || selectedDetail.user?.ProfileAsesi?.nama_lengkap || "-"}</p>
-                </div>
-                <div>
-                  <label className="block text-gray-500 mb-1 text-xs uppercase tracking-wider">Nilai Akhir</label>
-                  <p className="font-bold text-green-600 text-lg">{selectedDetail.nilai_akhir || "-"}</p>
-                </div>
-                <div>
-                  <label className="block text-gray-500 mb-1 text-xs uppercase tracking-wider">Status Rekomendasi</label>
-                  <div className="mt-1">
-                    <span className="inline-block bg-green-100 text-green-800 px-3 py-1 rounded-full font-bold text-xs border border-green-200">K - KOMPETEN</span>
+      {selectedDetail && (() => {
+        const profileDetail = getAsesiProfile(selectedDetail.user);
+        return (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4">
+            <div className="bg-white rounded-lg shadow-xl w-full max-w-2xl overflow-hidden animate-fade-in">
+              <div className="flex justify-between items-center bg-[#071E3D] text-white p-4">
+                <h2 className="text-lg font-bold flex items-center gap-2">
+                  <FaUserCheck className="text-[#CC6B27]" /> Detail Kelulusan Asesi
+                </h2>
+                <button onClick={closeDetailModal} className="text-gray-300 hover:text-white transition-colors">
+                  <FaTimes size={20} />
+                </button>
+              </div>
+              <div className="p-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-y-4 gap-x-6 text-sm">
+                  <div>
+                    <label className="block text-gray-500 mb-1 text-xs uppercase tracking-wider">NIK</label>
+                    <p className="font-semibold text-gray-800">{profileDetail.nik || "-"}</p>
+                  </div>
+                  <div>
+                    <label className="block text-gray-500 mb-1 text-xs uppercase tracking-wider">Nama Lengkap</label>
+                    <p className="font-semibold text-gray-800">{profileDetail.nama_lengkap || selectedDetail.user?.nama_lengkap || "-"}</p>
+                  </div>
+                  <div>
+                    <label className="block text-gray-500 mb-1 text-xs uppercase tracking-wider">Nilai Akhir</label>
+                    <p className="font-bold text-green-600 text-lg">{selectedDetail.nilai_akhir || "-"}</p>
+                  </div>
+                  <div>
+                    <label className="block text-gray-500 mb-1 text-xs uppercase tracking-wider">Status Rekomendasi</label>
+                    <div className="mt-1">
+                      <span className="inline-block bg-green-100 text-green-800 px-3 py-1 rounded-full font-bold text-xs border border-green-200">K - KOMPETEN</span>
+                    </div>
+                  </div>
+                  <div className="md:col-span-2">
+                    <label className="block text-gray-500 mb-1 text-xs uppercase tracking-wider">Keterangan / Catatan Asesor</label>
+                    <p className="font-medium text-gray-800 italic bg-gray-50 p-3 rounded border border-gray-200">
+                      {selectedDetail.keterangan || selectedDetail.catatan || "Tidak ada catatan."}
+                    </p>
                   </div>
                 </div>
-                <div className="md:col-span-2">
-                  <label className="block text-gray-500 mb-1 text-xs uppercase tracking-wider">Keterangan / Catatan Asesor</label>
-                  <p className="font-medium text-gray-800 italic bg-gray-50 p-3 rounded border border-gray-200">
-                    {selectedDetail.keterangan || selectedDetail.catatan || "Tidak ada catatan."}
-                  </p>
-                </div>
+              </div>
+              <div className="bg-gray-50 p-4 border-t border-gray-200 flex justify-end">
+                <button onClick={closeDetailModal} className="px-4 py-2 bg-white border border-gray-300 text-gray-700 rounded shadow-sm hover:bg-gray-100 transition-colors text-sm font-medium">Tutup</button>
               </div>
             </div>
-            <div className="bg-gray-50 p-4 border-t border-gray-200 flex justify-end">
-              <button onClick={closeDetailModal} className="px-4 py-2 bg-white border border-gray-300 text-gray-700 rounded shadow-sm hover:bg-gray-100 transition-colors text-sm font-medium">Tutup</button>
-            </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
 
       {/* ========================================== */}
       {/* 2. MODAL LIHAT JADWAL */}
       {/* ========================================== */}
-      {selectedJadwal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4">
-          <div className="bg-white rounded-lg shadow-xl w-full max-w-2xl overflow-hidden animate-fade-in">
-            <div className="flex justify-between items-center bg-blue-800 text-white p-4">
-              <h2 className="text-lg font-bold flex items-center gap-2">
-                <FaCalendarAlt className="text-blue-300" /> Detail Jadwal Asesmen
-              </h2>
-              <button onClick={closeJadwalModal} className="text-gray-300 hover:text-white transition-colors">
-                <FaTimes size={20} />
-              </button>
-            </div>
-            <div className="p-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-y-5 gap-x-6 text-sm">
-                <div className="md:col-span-2">
-                  <label className="block text-gray-500 mb-1 text-xs uppercase tracking-wider">Nama Kegiatan</label>
-                  <p className="font-bold text-lg text-[#182D4A]">{selectedJadwal.jadwal?.nama_kegiatan || "-"}</p>
-                </div>
-                <div>
-                  <label className="block text-gray-500 mb-1 text-xs uppercase tracking-wider">Skema Sertifikasi</label>
-                  <p className="font-medium text-gray-800">{selectedJadwal.jadwal?.skema?.nama_skema || "-"}</p>
-                </div>
-                <div>
-                  <label className="block text-gray-500 mb-1 text-xs uppercase tracking-wider">Metode Pelaksanaan</label>
-                  <p className="font-medium text-gray-800 uppercase bg-blue-50 text-blue-800 inline-block px-2 py-0.5 rounded border border-blue-200">
-                    {selectedJadwal.jadwal?.pelaksanaan_uji || "-"}
-                  </p>
-                </div>
-                <div>
-                  <label className="block text-gray-500 mb-1 text-xs uppercase tracking-wider">Tanggal Pelaksanaan</label>
-                  <p className="font-medium text-gray-800">
-                    {formatDate(selectedJadwal.jadwal?.tgl_awal)} <span className="text-gray-400 mx-1">s/d</span> {formatDate(selectedJadwal.jadwal?.tgl_akhir)}
-                  </p>
-                </div>
-                <div>
-                  <label className="block text-gray-500 mb-1 text-xs uppercase tracking-wider">Waktu / Jam</label>
-                  <p className="font-medium text-gray-800">{selectedJadwal.jadwal?.jam || "-"} WIB</p>
-                </div>
-                <div className="md:col-span-2">
-                  <label className="block text-gray-500 mb-1 text-xs uppercase tracking-wider">Lokasi / URL Agenda</label>
-                  {selectedJadwal.jadwal?.url_agenda ? (
-                     <a href={selectedJadwal.jadwal.url_agenda} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline font-medium break-all">
-                       {selectedJadwal.jadwal.url_agenda}
-                     </a>
-                  ) : (
-                    <p className="font-medium text-gray-800">-</p>
-                  )}
+      {selectedJadwal && (() => {
+        const jadwalObj = getJadwal(selectedJadwal);
+        const skemaObj = getSkema(jadwalObj);
+        
+        return (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4">
+            <div className="bg-white rounded-lg shadow-xl w-full max-w-2xl overflow-hidden animate-fade-in">
+              <div className="flex justify-between items-center bg-blue-800 text-white p-4">
+                <h2 className="text-lg font-bold flex items-center gap-2">
+                  <FaCalendarAlt className="text-blue-300" /> Detail Jadwal Asesmen
+                </h2>
+                <button onClick={closeJadwalModal} className="text-gray-300 hover:text-white transition-colors">
+                  <FaTimes size={20} />
+                </button>
+              </div>
+              <div className="p-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-y-5 gap-x-6 text-sm">
+                  <div className="md:col-span-2">
+                    <label className="block text-gray-500 mb-1 text-xs uppercase tracking-wider">Nama Kegiatan</label>
+                    <p className="font-bold text-lg text-[#182D4A]">{jadwalObj.nama_jadwal || jadwalObj.nama_kegiatan || "-"}</p>
+                  </div>
+                  <div>
+                    <label className="block text-gray-500 mb-1 text-xs uppercase tracking-wider">Skema Sertifikasi</label>
+                    <p className="font-medium text-gray-800">{skemaObj.judul_skema || skemaObj.nama_skema || "-"}</p>
+                  </div>
+                  <div>
+                    <label className="block text-gray-500 mb-1 text-xs uppercase tracking-wider">Metode Pelaksanaan</label>
+                    <p className="font-medium text-gray-800 uppercase bg-blue-50 text-blue-800 inline-block px-2 py-0.5 rounded border border-blue-200">
+                      {jadwalObj.pelaksanaan_uji || "-"}
+                    </p>
+                  </div>
+                  <div>
+                    <label className="block text-gray-500 mb-1 text-xs uppercase tracking-wider">Tanggal Pelaksanaan</label>
+                    <p className="font-medium text-gray-800">
+                      {formatDate(jadwalObj.tgl_awal)} <span className="text-gray-400 mx-1">s/d</span> {formatDate(jadwalObj.tgl_akhir)}
+                    </p>
+                  </div>
+                  <div>
+                    <label className="block text-gray-500 mb-1 text-xs uppercase tracking-wider">Waktu / Jam</label>
+                    <p className="font-medium text-gray-800">{jadwalObj.jam || "-"} WIB</p>
+                  </div>
+                  <div className="md:col-span-2">
+                    <label className="block text-gray-500 mb-1 text-xs uppercase tracking-wider">Lokasi / URL Agenda</label>
+                    {jadwalObj.url_agenda ? (
+                       <a href={jadwalObj.url_agenda} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline font-medium break-all">
+                         {jadwalObj.url_agenda}
+                       </a>
+                    ) : (
+                      <p className="font-medium text-gray-800">-</p>
+                    )}
+                  </div>
                 </div>
               </div>
-            </div>
-            <div className="bg-gray-50 p-4 border-t border-gray-200 flex justify-end">
-              <button onClick={closeJadwalModal} className="px-4 py-2 bg-white border border-gray-300 text-gray-700 rounded shadow-sm hover:bg-gray-100 transition-colors text-sm font-medium">Tutup</button>
+              <div className="bg-gray-50 p-4 border-t border-gray-200 flex justify-end">
+                <button onClick={closeJadwalModal} className="px-4 py-2 bg-white border border-gray-300 text-gray-700 rounded shadow-sm hover:bg-gray-100 transition-colors text-sm font-medium">Tutup</button>
+              </div>
             </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
 
       {/* ========================================== */}
       {/* 3. MODAL UNGGAH SERTIFIKAT */}
       {/* ========================================== */}
-      {selectedUpload && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4">
-          <div className="bg-white rounded-lg shadow-xl w-full max-w-lg overflow-hidden animate-fade-in">
-            <div className="flex justify-between items-center bg-[#CC6B27] text-white p-4">
-              <h2 className="text-lg font-bold flex items-center gap-2">
-                <FaCloudUploadAlt size={22} /> Unggah Sertifikat
-              </h2>
-              <button onClick={closeUploadModal} className="text-orange-100 hover:text-white transition-colors">
-                <FaTimes size={20} />
-              </button>
-            </div>
-            <form onSubmit={handleUploadSubmit}>
-              <div className="p-6">
-                <p className="text-sm text-gray-600 mb-4">
-                  Unggah dokumen sertifikat untuk asesi <span className="font-bold text-[#182D4A]">{selectedUpload.user?.nama_lengkap || "Asesi"}</span> (Skema: {selectedUpload.jadwal?.skema?.nama_skema || "-"}).
-                </p>
-                <div className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center bg-gray-50 hover:bg-gray-100 transition-colors">
-                  <FaUpload className="mx-auto text-4xl text-gray-400 mb-3" />
-                  <label className="block mb-2 text-sm font-medium text-gray-700">Pilih File Sertifikat (PDF/JPG/PNG)</label>
-                  <input 
-                    type="file" 
-                    accept=".pdf, image/jpeg, image/png"
-                    onChange={(e) => setFileSertifikat(e.target.files[0])}
-                    className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-orange-50 file:text-[#CC6B27] hover:file:bg-orange-100 mx-auto cursor-pointer"
-                  />
-                  {fileSertifikat && (
-                    <p className="mt-3 text-sm text-green-600 font-medium break-words">
-                      File terpilih: {fileSertifikat.name}
-                    </p>
-                  )}
-                </div>
-              </div>
-              <div className="bg-gray-50 p-4 border-t border-gray-200 flex justify-end gap-3">
-                <button type="button" onClick={closeUploadModal} className="px-4 py-2 bg-white border border-gray-300 text-gray-700 rounded shadow-sm hover:bg-gray-100 transition-colors text-sm font-medium">Batal</button>
-                <button type="submit" className="px-5 py-2 bg-[#182D4A] text-white rounded shadow-md hover:bg-[#0a1424] transition-colors text-sm font-bold flex items-center gap-2">
-                  <FaCloudUploadAlt /> Simpan Sertifikat
+      {selectedUpload && (() => {
+        const profileUpload = getAsesiProfile(selectedUpload.user);
+        const jadwalObj = getJadwal(selectedUpload);
+        const skemaObj = getSkema(jadwalObj);
+
+        return (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4">
+            <div className="bg-white rounded-lg shadow-xl w-full max-w-lg overflow-hidden animate-fade-in">
+              <div className="flex justify-between items-center bg-[#CC6B27] text-white p-4">
+                <h2 className="text-lg font-bold flex items-center gap-2">
+                  <FaCloudUploadAlt size={22} /> Unggah Sertifikat
+                </h2>
+                <button onClick={closeUploadModal} className="text-orange-100 hover:text-white transition-colors">
+                  <FaTimes size={20} />
                 </button>
               </div>
-            </form>
+              <form onSubmit={handleUploadSubmit}>
+                <div className="p-6">
+                  <p className="text-sm text-gray-600 mb-4">
+                    Unggah dokumen sertifikat untuk asesi <span className="font-bold text-[#182D4A]">{profileUpload.nama_lengkap || selectedUpload.user?.nama_lengkap || "Asesi"}</span> (Skema: {skemaObj.judul_skema || skemaObj.nama_skema || "-"}).
+                  </p>
+                  <div className="border-2 border-dashed border-gray-300 rounded-lg p-8 text-center bg-gray-50 hover:bg-gray-100 transition-colors">
+                    <FaUpload className="mx-auto text-4xl text-gray-400 mb-3" />
+                    <label className="block mb-2 text-sm font-medium text-gray-700">Pilih File Sertifikat (PDF/JPG/PNG)</label>
+                    <input 
+                      type="file" 
+                      accept=".pdf, image/jpeg, image/png"
+                      onChange={(e) => setFileSertifikat(e.target.files[0])}
+                      className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-orange-50 file:text-[#CC6B27] hover:file:bg-orange-100 mx-auto cursor-pointer"
+                    />
+                    {fileSertifikat && (
+                      <p className="mt-3 text-sm text-green-600 font-medium break-words">
+                        File terpilih: {fileSertifikat.name}
+                      </p>
+                    )}
+                  </div>
+                </div>
+                <div className="bg-gray-50 p-4 border-t border-gray-200 flex justify-end gap-3">
+                  <button type="button" onClick={closeUploadModal} className="px-4 py-2 bg-white border border-gray-300 text-gray-700 rounded shadow-sm hover:bg-gray-100 transition-colors text-sm font-medium">Batal</button>
+                  <button type="submit" className="px-5 py-2 bg-[#182D4A] text-white rounded shadow-md hover:bg-[#0a1424] transition-colors text-sm font-bold flex items-center gap-2">
+                    <FaCloudUploadAlt /> Simpan Sertifikat
+                  </button>
+                </div>
+              </form>
+            </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
 
     </div>
   );
