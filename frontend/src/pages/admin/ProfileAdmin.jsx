@@ -2,12 +2,15 @@ import React, { useState, useEffect } from 'react';
 import Swal from 'sweetalert2';
 import api from "../../services/api";
 import { 
-  User, Mail, MapPin, Edit2, Save, X, Shield, 
-  GraduationCap, Loader2, Briefcase, FileText, Calendar, Hash
+  User, MapPin, Edit2, Save, X, Shield, 
+  GraduationCap, Loader2, Hash, Calendar, Camera
 } from 'lucide-react';
 
 const ProfileAdmin = () => {
-  // --- STATE DATA (Data Asli dari Backend) ---
+  // --- BASE URL UNTUK FOTO ---
+  const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+
+  // --- STATE DATA ---
   const [profile, setProfile] = useState({
     nip_admin: '', nik: '', nama_lengkap: '', 
     tempat_lahir: '', tanggal_lahir: '',
@@ -16,11 +19,13 @@ const ProfileAdmin = () => {
   });
   
   const [userAccount, setUserAccount] = useState({
-    username: '', email: '', role: 'Administrator'
+    username: '', role: 'Administrator'
   });
 
   // --- STATE FORM DATA (Untuk Modal Edit) ---
   const [formData, setFormData] = useState({});
+  const [fotoFile, setFotoFile] = useState(null);
+  const [fotoPreview, setFotoPreview] = useState(null);
 
   const [loading, setLoading] = useState(true);
   const [isEditing, setIsEditing] = useState(false);
@@ -35,7 +40,7 @@ const ProfileAdmin = () => {
     provinsi: '', kota: '', kecamatan: ''
   });
 
-  // --- FETCH DATA PROFIL ---
+  // --- FETCH DATA ---
   const fetchProfile = async () => {
     setLoading(true);
     try {
@@ -65,7 +70,6 @@ const ProfileAdmin = () => {
       const storedUser = JSON.parse(localStorage.getItem('user') || '{}');
       setUserAccount({
         username: storedUser.username || 'Admin',
-        email: storedUser.email || '-',
         role: storedUser.role || 'Administrator'
       });
 
@@ -144,10 +148,20 @@ const ProfileAdmin = () => {
     setFormData(prev => ({ ...prev, [name]: value }));
   };
 
+  // --- PHOTO HANDLER ---
+  const handleFotoChange = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      setFotoFile(file);
+      setFotoPreview(URL.createObjectURL(file)); 
+    }
+  };
+
   const handleEditClick = () => {
-    setFormData({ ...profile }); // Salin data profile ke form sementara
+    setFormData({ ...profile });
+    setFotoFile(null);
+    setFotoPreview(profile.foto ? `${API_URL}/uploads/${profile.foto}` : null); 
     setIsEditing(true);
-    // Reset wilayah dropdown selections
     setSelectedWilayahId({ provinsi: '', kota: '', kecamatan: '' });
   };
 
@@ -159,7 +173,21 @@ const ProfileAdmin = () => {
     e.preventDefault();
     try {
       Swal.fire({ title: 'Menyimpan...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
-      await api.put('/admin/profile', formData);
+      
+      const payload = new FormData();
+      Object.keys(formData).forEach(key => {
+        if (key !== 'foto' && formData[key] !== null && formData[key] !== undefined) {
+          payload.append(key, formData[key]);
+        }
+      });
+
+      if (fotoFile) {
+        payload.append('foto', fotoFile);
+      }
+
+      await api.put('/admin/profile', payload, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      });
       
       const storedUser = JSON.parse(localStorage.getItem('user') || '{}');
       storedUser.name = formData.nama_lengkap; 
@@ -167,20 +195,16 @@ const ProfileAdmin = () => {
 
       Swal.fire({ icon: 'success', title: 'Berhasil', text: 'Profil berhasil diperbarui', timer: 1500, showConfirmButton: false });
       setIsEditing(false);
-      fetchProfile(); // Reload data asli dari backend
-      
-      // Memaksa refresh halaman agar Navbar update nama (opsional)
+      fetchProfile();
       setTimeout(() => window.location.reload(), 1500); 
     } catch (error) {
       Swal.fire('Error', error.response?.data?.message || 'Gagal update profil', 'error');
     }
   };
 
-  // Helper Class
   const inputClass = "w-full p-2.5 border border-[#071E3D]/20 rounded-lg text-[13px] text-[#071E3D] bg-[#FAFAFA] focus:bg-white focus:outline-none focus:border-[#CC6B27] focus:ring-2 focus:ring-[#CC6B27]/10 transition-all font-medium";
   const labelClass = "block text-[12px] font-bold text-[#071E3D] mb-1.5";
 
-  // Helper Komponen Menampilkan Detail Text
   const DetailText = ({ label, value, icon: Icon }) => (
     <div className="mb-4">
       <p className="text-[11px] font-bold text-[#182D4A]/60 uppercase tracking-widest mb-1 flex items-center gap-1.5">
@@ -202,7 +226,7 @@ const ProfileAdmin = () => {
   return (
     <div className="p-6 md:p-8 bg-[#FAFAFA] min-h-screen flex flex-col gap-6 relative">
       
-      {/* 1. HEADER PAGE */}
+      {/* HEADER PAGE */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-white p-6 rounded-xl border border-[#071E3D]/10 shadow-sm">
         <div>
           <h2 className="text-[22px] font-bold text-[#071E3D] m-0 mb-1">Profil Administrator</h2>
@@ -216,18 +240,24 @@ const ProfileAdmin = () => {
         </button>
       </div>
 
-      {/* 2. MAIN CONTENT VIEW (READ-ONLY) */}
+      {/* VIEW MODE */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        
-        {/* KOLOM KIRI: KARTU PROFIL RINGKAS */}
+        {/* KOLOM KIRI */}
         <div className="lg:col-span-1 flex flex-col gap-6">
           <div className="bg-white rounded-xl border border-[#071E3D]/10 shadow-sm overflow-hidden">
             <div className="h-28 bg-gradient-to-r from-[#071E3D] to-[#182D4A] relative"></div>
+            
+            {/* AREA FOTO PROFIL */}
             <div className="flex justify-center -mt-14 relative z-10">
-              <div className="w-28 h-28 bg-[#CC6B27] rounded-full border-[5px] border-white shadow-md flex items-center justify-center text-white font-bold text-[40px]">
-                {profile.nama_lengkap ? profile.nama_lengkap.charAt(0).toUpperCase() : <User size={48}/>}
+              <div className="w-28 h-28 bg-[#CC6B27] rounded-full border-[5px] border-white shadow-md flex items-center justify-center text-white font-bold text-[40px] overflow-hidden">
+                {profile.foto ? (
+                  <img src={`${API_URL}/uploads/${profile.foto}`} alt="Profil" className="w-full h-full object-cover"/>
+                ) : (
+                  profile.nama_lengkap ? profile.nama_lengkap.charAt(0).toUpperCase() : <User size={48}/>
+                )}
               </div>
             </div>
+
             <div className="text-center px-6 pt-4 pb-6 border-b border-[#071E3D]/10">
               <h2 className="text-[20px] font-extrabold text-[#071E3D] leading-tight mb-1">
                 {profile.nama_lengkap || userAccount.username}
@@ -236,16 +266,9 @@ const ProfileAdmin = () => {
                 {userAccount.role}
               </span>
             </div>
+            
             <div className="p-6 flex flex-col gap-5">
-              <div className="flex items-center gap-4">
-                <div className="w-10 h-10 rounded-xl bg-[#CC6B27]/10 flex items-center justify-center text-[#CC6B27]">
-                  <Mail size={18}/>
-                </div>
-                <div>
-                  <p className="text-[#182D4A]/70 text-[11px] font-bold uppercase mb-0.5">Email Akun</p>
-                  <p className="text-[#071E3D] font-bold text-[13.5px] truncate max-w-[200px]">{userAccount.email}</p>
-                </div>
-              </div>
+              {/* BAGIAN EMAIL SUDAH DIHAPUS */}
               <div className="flex items-center gap-4">
                 <div className="w-10 h-10 rounded-xl bg-[#CC6B27]/10 flex items-center justify-center text-[#CC6B27]">
                   <Shield size={18}/>
@@ -259,7 +282,7 @@ const ProfileAdmin = () => {
           </div>
         </div>
 
-        {/* KOLOM KANAN: READ-ONLY DATA DETAIL */}
+        {/* KOLOM KANAN */}
         <div className="lg:col-span-2 flex flex-col gap-6">
           <div className="bg-white rounded-xl border border-[#071E3D]/10 shadow-sm p-6">
             <h3 className="text-[16px] font-bold text-[#CC6B27] mb-5 border-b border-[#CC6B27]/20 pb-2 flex items-center gap-2">
@@ -306,31 +329,46 @@ const ProfileAdmin = () => {
             </div>
           </div>
         </div>
-
       </div>
 
-      {/* 3. MODAL / CARD EDIT PROFIL (Floating Overlay) */}
+      {/* MODAL EDIT PROFIL */}
       {isEditing && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#071E3D]/60 backdrop-blur-sm p-4">
           <div className="bg-white w-full max-w-4xl rounded-2xl shadow-2xl flex flex-col max-h-[90vh] overflow-hidden animate-in fade-in zoom-in duration-200">
             
-            {/* Header Modal */}
             <div className="px-6 py-4 border-b border-[#071E3D]/10 flex justify-between items-center bg-[#FAFAFA]">
               <h3 className="text-[18px] font-bold text-[#071E3D] flex items-center gap-2">
                 <Edit2 size={20} className="text-[#CC6B27]"/> Form Perbarui Profil
               </h3>
-              <button 
-                onClick={handleCancelEdit} 
-                className="w-8 h-8 rounded-full bg-white border border-[#071E3D]/20 flex justify-center items-center text-[#182D4A] hover:bg-red-50 hover:text-red-500 hover:border-red-200 transition-all"
-              >
+              <button onClick={handleCancelEdit} className="w-8 h-8 rounded-full bg-white border border-[#071E3D]/20 flex justify-center items-center text-[#182D4A] hover:bg-red-50 hover:text-red-500 hover:border-red-200 transition-all">
                 <X size={18}/>
               </button>
             </div>
 
-            {/* Body Modal (Bisa di-scroll) */}
             <div className="p-6 overflow-y-auto flex-1">
               <form id="edit-profile-form" onSubmit={handleSubmit} className="flex flex-col gap-8">
                 
+                {/* SECTION FOTO PROFIL */}
+                <div className="bg-[#FAFAFA] p-5 rounded-xl border border-[#071E3D]/10 flex items-center gap-6">
+                  <div className="w-20 h-20 rounded-full border-4 border-[#CC6B27] overflow-hidden flex justify-center items-center bg-gray-200 shadow-sm shrink-0">
+                    {fotoPreview ? (
+                      <img src={fotoPreview} alt="Preview" className="w-full h-full object-cover"/>
+                    ) : (
+                      <Camera size={30} className="text-gray-400"/>
+                    )}
+                  </div>
+                  <div className="flex-1">
+                    <label className={labelClass}>Unggah Foto Profil Baru</label>
+                    <input 
+                      type="file" 
+                      accept="image/*" 
+                      onChange={handleFotoChange} 
+                      className="w-full text-[13px] text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-[12px] file:font-semibold file:bg-[#CC6B27]/10 file:text-[#CC6B27] hover:file:bg-[#CC6B27]/20 cursor-pointer"
+                    />
+                    <p className="text-[11px] text-gray-400 mt-2">Format: JPG, PNG (Max 2MB). Biarkan kosong jika tidak ingin mengubah foto.</p>
+                  </div>
+                </div>
+
                 {/* IDENTITAS */}
                 <div>
                   <h4 className="text-[14px] font-bold text-[#CC6B27] mb-4 border-b border-[#CC6B27]/20 pb-2 flex items-center gap-2">
@@ -367,10 +405,9 @@ const ProfileAdmin = () => {
                   </h4>
                   <div className="flex flex-col gap-5">
                     <div>
-                      <label className={labelClass}>Alamat Lengkap (Jalan/Gang/Nomor Rumah)</label>
+                      <label className={labelClass}>Alamat Lengkap</label>
                       <textarea name="alamat" value={formData.alamat || ''} onChange={handleChange} rows="2" className={`${inputClass} resize-none`}></textarea>
                     </div>
-                    
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                       <div>
                         <label className={labelClass}>Provinsi</label>
@@ -405,16 +442,9 @@ const ProfileAdmin = () => {
                         {formData.kelurahan && !kelurahanList.length && <span className="text-[11px] text-gray-500 mt-1 block">Saat ini: {formData.kelurahan}</span>}
                       </div>
                     </div>
-                    
                     <div className="grid grid-cols-2 gap-5 w-full md:w-1/2">
-                      <div>
-                        <label className={labelClass}>RT</label>
-                        <input type="text" name="rt" value={formData.rt || ''} onChange={handleChange} className={inputClass}/>
-                      </div>
-                      <div>
-                        <label className={labelClass}>RW</label>
-                        <input type="text" name="rw" value={formData.rw || ''} onChange={handleChange} className={inputClass}/>
-                      </div>
+                      <div><label className={labelClass}>RT</label><input type="text" name="rt" value={formData.rt || ''} onChange={handleChange} className={inputClass}/></div>
+                      <div><label className={labelClass}>RW</label><input type="text" name="rw" value={formData.rw || ''} onChange={handleChange} className={inputClass}/></div>
                     </div>
                   </div>
                 </div>
@@ -427,10 +457,10 @@ const ProfileAdmin = () => {
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                     <div className="md:col-span-2">
                       <label className={labelClass}>Pendidikan Terakhir</label>
-                      <input type="text" name="pendidikan_terakhir" value={formData.pendidikan_terakhir || ''} onChange={handleChange} placeholder="Contoh: S1 Teknik Informatika" className={inputClass}/>
+                      <input type="text" name="pendidikan_terakhir" value={formData.pendidikan_terakhir || ''} onChange={handleChange} className={inputClass}/>
                     </div>
                     <div>
-                      <label className={labelClass}>No. Lisensi (Jika Ada)</label>
+                      <label className={labelClass}>No. Lisensi</label>
                       <input type="text" name="no_lisensi" value={formData.no_lisensi || ''} onChange={handleChange} className={inputClass}/>
                     </div>
                     <div>
@@ -442,20 +472,9 @@ const ProfileAdmin = () => {
               </form>
             </div>
 
-            {/* Footer Modal - Action Buttons */}
             <div className="px-6 py-4 border-t border-[#071E3D]/10 bg-[#FAFAFA] flex justify-end gap-3 rounded-b-2xl">
-              <button 
-                type="button"
-                onClick={handleCancelEdit}
-                className="px-5 py-2.5 rounded-lg font-bold border border-[#071E3D]/20 text-[#182D4A] hover:bg-[#E2E8F0] transition-colors text-[13px]"
-              >
-                Batal
-              </button>
-              <button 
-                type="submit" 
-                form="edit-profile-form"
-                className="px-6 py-2.5 rounded-lg font-bold bg-[#CC6B27] text-white hover:bg-[#a8561f] shadow-md transition-all flex items-center gap-2 text-[13px]"
-              >
+              <button type="button" onClick={handleCancelEdit} className="px-5 py-2.5 rounded-lg font-bold border border-[#071E3D]/20 text-[#182D4A] hover:bg-[#E2E8F0] transition-colors text-[13px]">Batal</button>
+              <button type="submit" form="edit-profile-form" className="px-6 py-2.5 rounded-lg font-bold bg-[#CC6B27] text-white hover:bg-[#a8561f] shadow-md transition-all flex items-center gap-2 text-[13px]">
                 <Save size={16}/> Simpan Perubahan
               </button>
             </div>
