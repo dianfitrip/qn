@@ -1,11 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate, useParams } from 'react-router-dom'; // DITAMBAHKAN useParams
+import { useNavigate, useParams } from 'react-router-dom';
 import Swal from 'sweetalert2';
 import api from "../../services/api";
 import { 
   Search, Plus, Edit2, Trash2, X, Save, FileText, 
   Loader2, Settings, User, BookOpen, ExternalLink, CheckCircle, Clock, List, ArrowLeft
-} from 'lucide-react'; // DITAMBAHKAN ArrowLeft
+} from 'lucide-react';
 
 const Mapa = () => {
   const navigate = useNavigate();
@@ -49,7 +49,7 @@ const Mapa = () => {
       }
 
       // --- PERBAIKAN CACHE CHROME DI SINI ---
-      // Menambahkan timestamp agar URL selalu dianggap baru oleh Chrome
+      // Menambahkan timestamp agar URL selalu dianggap baru oleh browser
       const response = await api.get(`/admin/mapa?timestamp=${new Date().getTime()}`);
       let mapaData = response.data?.data || response.data || [];
       
@@ -355,14 +355,28 @@ const Mapa = () => {
             {/* Body Form */}
             <form onSubmit={handleSubmit} className="p-6 flex flex-col gap-4 overflow-y-auto">
               
+              {/* PERBAIKAN UX DROPDOWN SKEMA DI SINI */}
               <div className="flex flex-col gap-1.5">
                 <label className="text-[13px] font-bold text-[#071E3D]">Pilih Skema <span className="text-red-500">*</span></label>
-                <select name="id_skema" value={formData.id_skema} onChange={handleInputChange} required className="w-full p-2.5 border border-[#071E3D]/20 rounded-lg text-[#071E3D] bg-[#FAFAFA] focus:bg-white focus:outline-none focus:border-[#CC6B27] focus:ring-2 focus:ring-[#CC6B27]/10 transition-all font-medium text-[13px]">
+                <select 
+                  name="id_skema" 
+                  value={formData.id_skema} 
+                  onChange={handleInputChange} 
+                  required 
+                  disabled={!!id} // Jika ada ID di URL, kunci dropdown
+                  className={`w-full p-2.5 border border-[#071E3D]/20 rounded-lg text-[13px] font-medium transition-all ${
+                    id 
+                      ? 'bg-gray-100 text-gray-500 cursor-not-allowed' // Style saat dikunci
+                      : 'bg-[#FAFAFA] text-[#071E3D] focus:bg-white focus:outline-none focus:border-[#CC6B27] focus:ring-2 focus:ring-[#CC6B27]/10' // Style normal
+                  }`}
+                >
                   <option value="">-- Pilih Skema Sertifikasi --</option>
                   {skemaList.map(s => (
                     <option key={s.id_skema} value={s.id_skema}>{s.judul_skema}</option>
                   ))}
                 </select>
+                {/* Info kecil jika dropdown dikunci */}
+                {id && <p className="text-[10px] text-[#CC6B27] font-medium mt-0.5">*Skema otomatis terkunci sesuai halaman detail.</p>}
               </div>
 
               <div className="grid grid-cols-2 gap-4">

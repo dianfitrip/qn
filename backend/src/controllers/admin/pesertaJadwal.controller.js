@@ -9,10 +9,18 @@ exports.getPesertaByJadwal = async (req, res) => {
     const data = await PesertaJadwal.findAll({
       where: { id_jadwal },
       include: [
-        { model: User, as: "user" },
-        { model: Jadwal, as: "jadwal" }
+        { 
+          model: User, 
+          as: "user",
+          include: [{ model: ProfileAsesi }] // <-- PERBAIKAN: Include ProfileAsesi untuk ambil NIK
+        },
+        { 
+          model: Jadwal, 
+          as: "jadwal",
+          include: [{ model: Skema, as: "skema" }] // <-- PERBAIKAN: Include Skema dari Jadwal
+        }
       ],
-      distinct: true // <--- TAMBAHKAN INI DI SINI
+      distinct: true
     });
 
     return response.success(res, "List peserta jadwal", data);
@@ -47,7 +55,7 @@ exports.getAllPesertaGlobal = async (req, res) => {
           include: [{ model: Skema, as: "skema" }] 
         }
       ],
-      distinct: true // <--- TAMBAHKAN JUGA DI SINI
+      distinct: true 
     });
 
     return response.success(res, "List peserta jadwal global", data);
