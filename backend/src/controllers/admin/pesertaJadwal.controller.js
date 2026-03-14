@@ -12,12 +12,14 @@ exports.getPesertaByJadwal = async (req, res) => {
         { 
           model: User, 
           as: "user",
-          include: [{ model: ProfileAsesi }] // <-- PERBAIKAN: Include ProfileAsesi untuk ambil NIK
+          // Menyertakan ProfileAsesi agar data NIK dan Nama Lengkap muncul
+          include: [{ model: ProfileAsesi, as: "ProfileAsesi" }] 
         },
         { 
           model: Jadwal, 
           as: "jadwal",
-          include: [{ model: Skema, as: "skema" }] // <-- PERBAIKAN: Include Skema dari Jadwal
+          // Menyertakan Skema agar nama_skema muncul
+          include: [{ model: Skema, as: "skema" }] 
         }
       ],
       distinct: true
@@ -35,8 +37,11 @@ exports.getAllPesertaGlobal = async (req, res) => {
     const { status } = req.query; 
     let whereCondition = {};
 
+    // Filter berdasarkan status dari query parameter
     if (status === 'terjadwal') {
       whereCondition.status_asesmen = { [Op.in]: ['terdaftar', 'pra_asesmen', 'asesmen'] };
+    } else if (status === 'belum_terjadwal') {
+      whereCondition.status_asesmen = { [Op.in]: ['menunggu_jadwal'] }; // Sesuaikan dengan enum di DB jika berbeda
     } else if (status) {
       whereCondition.status_asesmen = status;
     }
@@ -47,11 +52,13 @@ exports.getAllPesertaGlobal = async (req, res) => {
         {
           model: User,
           as: "user",
-          include: [{ model: ProfileAsesi }] 
+          // Menyertakan ProfileAsesi agar data NIK dan Nama Lengkap muncul di tabel Global
+          include: [{ model: ProfileAsesi, as: "ProfileAsesi" }] 
         },
         {
           model: Jadwal,
           as: "jadwal",
+          // Menyertakan Skema agar nama_skema muncul di tabel Global
           include: [{ model: Skema, as: "skema" }] 
         }
       ],
