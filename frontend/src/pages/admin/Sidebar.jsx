@@ -16,7 +16,6 @@ const Sidebar = () => {
   const [openMenus, setOpenMenus] = useState({
     laporan: false,
     standar: false,
-    event: false,
     asesi: false,
     asesor: false
   });
@@ -29,8 +28,9 @@ const Sidebar = () => {
       const isPathActive = (pathsArray) => pathsArray.some(p => path.startsWith(p));
 
       newState.laporan = isPathActive(['/admin/laporan']);
+      // '/admin/bank-soal-pg' tetap dipertahankan di sini agar menu Standar Kompetensi 
+      // tetap terbuka & menyala (highlight) ketika user sedang mengelola opsi PG
       newState.standar = isPathActive(['/admin/unit-kompetensi', '/admin/skkni', '/admin/bank-soal', '/admin/bank-soal-pg']);
-      newState.event = isPathActive(['/admin/jadwal']);
       newState.asesi = isPathActive(['/admin/asesi', '/admin/verifikasi-pendaftaran', '/admin/asesi/belum-kompeten']);
       newState.asesor = isPathActive(['/admin/asesor']);
 
@@ -51,18 +51,15 @@ const Sidebar = () => {
     sessionStorage.setItem("sidebarScrollPosition", e.target.scrollTop);
   };
 
-  // FUNGSI TOGGLE MENU YANG DIPERBARUI (ACCORDION STYLE)
+  // FUNGSI TOGGLE MENU (ACCORDION STYLE)
   const toggleMenu = (key) => {
     setOpenMenus((prev) => {
-      // Buat semua menu menjadi tertutup terlebih dahulu
       const newState = {
         laporan: false,
         standar: false,
-        event: false,
         asesi: false,
         asesor: false
       };
-      // Toggle hanya pada menu yang sedang diklik
       newState[key] = !prev[key];
       return newState;
     });
@@ -207,9 +204,6 @@ const Sidebar = () => {
             <button className={getSubItemClass(isActive('/admin/bank-soal'))} onClick={() => handleNav('/admin/bank-soal')}>
               <span className={`w-1.5 h-1.5 rounded-full mr-3 ${isActive('/admin/bank-soal') ? 'bg-[#CC6B27]' : 'bg-[#FAFAFA]/40'}`}></span>Bank Soal
             </button>
-            <button className={getSubItemClass(isActive('/admin/bank-soal-pg'))} onClick={() => handleNav('/admin/bank-soal-pg')}>
-              <span className={`w-1.5 h-1.5 rounded-full mr-3 ${isActive('/admin/bank-soal-pg') ? 'bg-[#CC6B27]' : 'bg-[#FAFAFA]/40'}`}></span>Bank Soal PG
-            </button>
           </div>
         )}
 
@@ -223,26 +217,13 @@ const Sidebar = () => {
         {/* OPERASIONAL */}
         <SectionLabel>Operasional</SectionLabel>
 
-        <button className={getNavItemClass(isActive('/admin/jadwal'))} onClick={() => toggleMenu('event')}>
+        {/* MENU JADWAL UJI KOMPETENSI (TIDAK LAGI DROPDOWN) */}
+        <button className={getNavItemClass(isActive('/admin/jadwal/uji-kompetensi'))} onClick={() => handleNav('/admin/jadwal/uji-kompetensi')}>
           <div className="flex items-center flex-1">
             <FaCalendarAlt className="text-lg mr-3" />
-            <span className="text-left">Event & Jadwal</span>
+            <span className="text-left">Jadwal Uji Kompetensi</span>
           </div>
-          {openMenus.event ? <FaChevronDown className="text-xs" /> : <FaChevronRight className="text-xs" />}
         </button>
-        {openMenus.event && (
-          <div className="flex flex-col mb-1 mt-1">
-            <button className={getSubItemClass(isActive('/admin/jadwal/cari'))} onClick={() => handleNav('/admin/jadwal/cari')}>
-              <span className={`w-1.5 h-1.5 rounded-full mr-3 ${isActive('/admin/jadwal/cari') ? 'bg-[#CC6B27]' : 'bg-[#FAFAFA]/40'}`}></span>Cari Jadwal
-            </button>
-            <button className={getSubItemClass(isActive('/admin/jadwal/uji-kompetensi'))} onClick={() => handleNav('/admin/jadwal/uji-kompetensi')}>
-              <span className={`w-1.5 h-1.5 rounded-full mr-3 ${isActive('/admin/jadwal/uji-kompetensi') ? 'bg-[#CC6B27]' : 'bg-[#FAFAFA]/40'}`}></span>Jadwal Uji Kompetensi
-            </button>
-            <button className={getSubItemClass(isActive('/admin/jadwal/event-uji'))} onClick={() => handleNav('/admin/jadwal/event-uji')}>
-              <span className={`w-1.5 h-1.5 rounded-full mr-3 ${isActive('/admin/jadwal/event-uji') ? 'bg-[#CC6B27]' : 'bg-[#FAFAFA]/40'}`}></span>Event Uji Kompetensi
-            </button>
-          </div>
-        )}
 
         <button className={getNavItemClass(isActive('/admin/tuk'))} onClick={() => handleNav('/admin/tuk')}>
           <div className="flex items-center flex-1">
@@ -263,13 +244,9 @@ const Sidebar = () => {
             <button className={getSubItemClass(isActive('/admin/asesi/tambah'))} onClick={() => handleNav('/admin/asesi/tambah')}>
               <span className={`w-1.5 h-1.5 rounded-full mr-3 ${isActive('/admin/asesi/tambah') ? 'bg-[#CC6B27]' : 'bg-[#FAFAFA]/40'}`}></span>Tambah Asesi
             </button>
-            <button className={getSubItemClass(isActive('/admin/asesi/cari'))} onClick={() => handleNav('/admin/asesi/cari')}>
-              <span className={`w-1.5 h-1.5 rounded-full mr-3 ${isActive('/admin/asesi/cari') ? 'bg-[#CC6B27]' : 'bg-[#FAFAFA]/40'}`}></span>Pencarian Asesi
-            </button>
             <button className={getSubItemClass(isActive('/admin/verifikasi-pendaftaran'))} onClick={() => handleNav('/admin/verifikasi-pendaftaran')}>
               <span className={`w-1.5 h-1.5 rounded-full mr-3 ${isActive('/admin/verifikasi-pendaftaran') ? 'bg-[#CC6B27]' : 'bg-[#FAFAFA]/40'}`}></span>Pendaftar Baru
             </button>
-            
             <button className={getSubItemClass(isActive('/admin/asesi/terjadwal'))} onClick={() => handleNav('/admin/asesi/terjadwal')}>
               <span className={`w-1.5 h-1.5 rounded-full mr-3 ${isActive('/admin/asesi/terjadwal') ? 'bg-[#CC6B27]' : 'bg-[#FAFAFA]/40'}`}></span>Terjadwal
             </button>

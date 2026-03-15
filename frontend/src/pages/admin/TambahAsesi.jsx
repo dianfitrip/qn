@@ -34,6 +34,9 @@ const TambahAsesi = () => {
   const [selectedKotaId, setSelectedKotaId] = useState('');
   const [selectedKecamatanId, setSelectedKecamatanId] = useState('');
 
+  // Validasi Error State
+  const [errors, setErrors] = useState({});
+
   // Form State
   const initialFormState = {
     nik: '', nama_lengkap: '', email: '', no_hp: '', jenis_kelamin: 'laki-laki',
@@ -149,16 +152,69 @@ const TambahAsesi = () => {
     setFormData({ ...formData, kelurahan: e.target.value ? text : '' });
   };
 
-  // --- HANDLERS ---
-  const handleInputChange = (e) => {
-    const { name, value } = e.target;
-    setFormData(prev => ({ ...prev, [name]: value }));
+  // --- FUNGSI VALIDASI ---
+  const validateInput = (name, value) => {
+    let errorMsg = '';
+    
+    if (name === 'nik') {
+      if (!value) errorMsg = 'NIK tidak boleh kosong.';
+      else if (value.length !== 16) errorMsg = 'NIK harus tepat 16 digit.';
+    } else if (name === 'no_hp') {
+      if (!value) errorMsg = 'No HP tidak boleh kosong.';
+      else if (value.length < 12 || value.length > 13) errorMsg = 'No HP harus 12-13 digit.';
+    } else if (name === 'email') {
+      if (!value) errorMsg = 'Email tidak boleh kosong.';
+      else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) errorMsg = 'Format email tidak valid.';
+    } else if (name === 'nama_lengkap') {
+      if (!value || value.trim() === '') errorMsg = 'Nama Lengkap wajib diisi.';
+    } else if (name === 'tahun_lulus' && value) {
+      const currentYear = new Date().getFullYear();
+      if (parseInt(value) > currentYear) errorMsg = 'Tahun lulus tidak boleh melebihi tahun saat ini.';
+    } else if (name === 'tanggal_lahir' && value) {
+      const selectedDate = new Date(value);
+      const today = new Date();
+      const minDate = new Date('1945-12-31');
+      if (selectedDate > today) {
+        errorMsg = 'Tanggal lahir tidak boleh di masa depan.';
+      } else if (selectedDate <= minDate) {
+        errorMsg = 'Tanggal lahir tidak valid (harus setelah 1945).';
+      }
+    }
+
+    setErrors(prev => ({ ...prev, [name]: errorMsg }));
+    return errorMsg === '';
   };
 
+  const handleInputChange = (e) => {
+    const { name, value } = e.target;
+    
+    // Auto hapus huruf untuk form yang wajib angka (Termasuk telp_perusahaan)
+    let finalValue = value;
+    if (['nik', 'no_hp', 'rt', 'rw', 'kode_pos', 'telp_perusahaan'].includes(name)) {
+      finalValue = value.replace(/\D/g, ''); // \D berarti karakter non-digit dihapus
+    }
+
+    setFormData(prev => ({ ...prev, [name]: finalValue }));
+    validateInput(name, finalValue);
+  };
+
+  // --- HANDLERS SUBMIT & DELETE ---
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if(!formData.nik || !formData.email || !formData.nama_lengkap) {
-        return Swal.fire('Peringatan', 'NIK, Email, dan Nama Lengkap wajib diisi!', 'warning');
+
+    // Cek semua validasi sebelum memproses
+    let isValid = true;
+    Object.keys(formData).forEach(key => {
+      // Email dan No HP tidak ikut dikirim pada edit, jadi tak perlu blok validasi saat edit
+      if (['email', 'no_hp', 'nik'].includes(key) && isEditMode) return; 
+      
+      if (!validateInput(key, formData[key])) {
+        isValid = false;
+      }
+    });
+
+    if (!isValid) {
+      return Swal.fire('Peringatan', 'Silakan perbaiki isian yang masih kosong atau formatnya salah!', 'warning');
     }
 
     if (!isEditMode) return;
@@ -170,7 +226,7 @@ const TambahAsesi = () => {
       if (payload.tanggal_lahir === "") payload.tanggal_lahir = null;
       payload.tahun_lulus = payload.tahun_lulus ? parseInt(payload.tahun_lulus) : null;
 
-      // PERBAIKAN: Hapus data email & no hp dari payload karena beda tabel
+      // Hapus data email & no hp dari payload karena beda tabel
       delete payload.email;
       delete payload.no_hp;
 
@@ -206,7 +262,6 @@ const TambahAsesi = () => {
     });
   };
 
-  // PERBAIKAN: Handle Import Error
   const handleImportExcel = async (e) => {
     e.preventDefault();
     if (!fileExcel) return Swal.fire('Peringatan', 'Pilih file Excel terlebih dahulu', 'warning');
@@ -243,7 +298,6 @@ const TambahAsesi = () => {
     }
   };
 
-  // PERBAIKAN: Ganti Send Email jadi Reset Password sesuai Backend
   const handleResetPassword = async (id_user, email) => {
     const confirm = await Swal.fire({
       title: 'Reset Password?',
@@ -259,11 +313,9 @@ const TambahAsesi = () => {
       try {
         Swal.fire({ title: 'Memproses...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
         
-        // Memanggil rute POST /admin/asesi/:id/reset-password
         const response = await api.post(`/admin/asesi/${id_user}/reset-password`); 
         const resData = response.data !== undefined ? response.data : response;
         
-        // Hanya mengambil username (NIK) sesuai respon backend terbaru
         const { username } = resData.data;
 
         Swal.fire({
@@ -281,6 +333,7 @@ const TambahAsesi = () => {
     setFormData(initialFormState);
     setSelectedProvinsiId(''); setSelectedKotaId(''); setSelectedKecamatanId('');
     setIsEditMode(false); setIsDetailMode(false); setCurrentId(null);
+    setErrors({});
   };
 
   const handleEdit = async (item) => {
@@ -308,7 +361,10 @@ const TambahAsesi = () => {
     item.nik?.includes(searchTerm)
   );
 
-  const inputClass = "w-full p-2.5 border border-[#071E3D]/20 rounded-lg text-[13px] text-[#071E3D] bg-[#FAFAFA] focus:bg-white focus:outline-none focus:border-[#CC6B27] focus:ring-2 focus:ring-[#CC6B27]/10 transition-all disabled:opacity-60 disabled:bg-gray-100 font-medium";
+  // Helper Class Style
+  const inputClass = (name) => `w-full p-2.5 border rounded-lg text-[13px] text-[#071E3D] bg-[#FAFAFA] focus:bg-white focus:outline-none transition-all disabled:opacity-70 disabled:bg-gray-100 font-medium placeholder:text-[#182D4A]/40
+    ${errors[name] ? 'border-red-500 focus:border-red-500 focus:ring-1 focus:ring-red-500' : 'border-[#071E3D]/20 focus:border-[#CC6B27] focus:ring-2 focus:ring-[#CC6B27]/10'}
+  `;
 
   return (
     <div className="p-6 md:p-8 bg-[#FAFAFA] min-h-screen flex flex-col gap-6">
@@ -391,7 +447,6 @@ const TambahAsesi = () => {
                     <td className="py-3 px-4 text-center">
                       <div className="flex justify-center gap-2">
                         
-                        {/* PERBAIKAN: Tombol Ganti Sandi */}
                         <button 
                           onClick={() => handleResetPassword(item.id_user || item.id, item.user?.email || item.email)}
                           className="px-2 py-1.5 rounded flex items-center justify-center gap-1.5 text-[11px] font-bold transition-all border bg-[#182D4A]/5 text-[#182D4A] border-[#182D4A]/20 hover:bg-[#182D4A]/10"
@@ -442,23 +497,42 @@ const TambahAsesi = () => {
                     <UserIcon size={16}/> Identitas Pribadi
                   </h4>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div><label className="block text-[12px] font-bold text-[#071E3D] mb-1">NIK <span className="text-red-500">*</span></label><input type="text" name="nik" value={formData.nik} onChange={handleInputChange} maxLength="16" required disabled={isDetailMode} placeholder="16 Digit Angka" className={inputClass}/></div>
-                    <div><label className="block text-[12px] font-bold text-[#071E3D] mb-1">Nama Lengkap <span className="text-red-500">*</span></label><input type="text" name="nama_lengkap" value={formData.nama_lengkap} onChange={handleInputChange} required disabled={isDetailMode} placeholder="Nama lengkap" className={inputClass}/></div>
-                    <div><label className="block text-[12px] font-bold text-[#071E3D] mb-1">Email Login <span className="text-red-500">*</span></label><input type="email" name="email" value={formData.email} onChange={handleInputChange} required disabled={isDetailMode || isEditMode} placeholder="Email aktif" className={inputClass}/></div>
+                    <div>
+                      <label className="block text-[12px] font-bold text-[#071E3D] mb-1">NIK <span className="text-red-500">*</span></label>
+                      <input type="text" name="nik" value={formData.nik} onChange={handleInputChange} maxLength="16" required disabled={isDetailMode} placeholder="16 Digit Angka" className={inputClass('nik')}/>
+                      {errors.nik && <span className="text-[11px] text-red-500 font-medium block mt-1">{errors.nik}</span>}
+                    </div>
+                    <div>
+                      <label className="block text-[12px] font-bold text-[#071E3D] mb-1">Nama Lengkap <span className="text-red-500">*</span></label>
+                      <input type="text" name="nama_lengkap" value={formData.nama_lengkap} onChange={handleInputChange} required disabled={isDetailMode} placeholder="Nama lengkap" className={inputClass('nama_lengkap')}/>
+                      {errors.nama_lengkap && <span className="text-[11px] text-red-500 font-medium block mt-1">{errors.nama_lengkap}</span>}
+                    </div>
+                    <div>
+                      <label className="block text-[12px] font-bold text-[#071E3D] mb-1">Email Login <span className="text-red-500">*</span></label>
+                      <input type="email" name="email" value={formData.email} onChange={handleInputChange} required disabled={isDetailMode || isEditMode} placeholder="Email aktif" className={inputClass('email')}/>
+                      {errors.email && <span className="text-[11px] text-red-500 font-medium block mt-1">{errors.email}</span>}
+                    </div>
                     
-                    {/* PERBAIKAN: Input No HP disabled saat edit */}
-                    <div><label className="block text-[12px] font-bold text-[#071E3D] mb-1">No HP / WhatsApp <span className="text-red-500">*</span></label><input type="text" name="no_hp" value={formData.no_hp} onChange={handleInputChange} required disabled={isDetailMode || isEditMode} placeholder="08xxxxxxxx" className={inputClass}/></div>
+                    <div>
+                      <label className="block text-[12px] font-bold text-[#071E3D] mb-1">No HP / WhatsApp <span className="text-red-500">*</span></label>
+                      <input type="text" name="no_hp" value={formData.no_hp} onChange={handleInputChange} maxLength="13" required disabled={isDetailMode || isEditMode} placeholder="08xxxxxxxx" className={inputClass('no_hp')}/>
+                      {errors.no_hp && <span className="text-[11px] text-red-500 font-medium block mt-1">{errors.no_hp}</span>}
+                    </div>
                     
-                    <div><label className="block text-[12px] font-bold text-[#071E3D] mb-1">Tempat Lahir</label><input type="text" name="tempat_lahir" value={formData.tempat_lahir} onChange={handleInputChange} disabled={isDetailMode} className={inputClass}/></div>
-                    <div><label className="block text-[12px] font-bold text-[#071E3D] mb-1">Tanggal Lahir</label><input type="date" name="tanggal_lahir" value={formData.tanggal_lahir} onChange={handleInputChange} disabled={isDetailMode} className={inputClass}/></div>
+                    <div><label className="block text-[12px] font-bold text-[#071E3D] mb-1">Tempat Lahir</label><input type="text" name="tempat_lahir" value={formData.tempat_lahir} onChange={handleInputChange} disabled={isDetailMode} className={inputClass('tempat_lahir')}/></div>
+                    <div>
+                      <label className="block text-[12px] font-bold text-[#071E3D] mb-1">Tanggal Lahir</label>
+                      <input type="date" name="tanggal_lahir" value={formData.tanggal_lahir} onChange={handleInputChange} disabled={isDetailMode} className={inputClass('tanggal_lahir')}/>
+                      {errors.tanggal_lahir && <span className="text-[11px] text-red-500 font-medium block mt-1">{errors.tanggal_lahir}</span>}
+                    </div>
                     <div>
                       <label className="block text-[12px] font-bold text-[#071E3D] mb-1">Jenis Kelamin</label>
-                      <select name="jenis_kelamin" value={formData.jenis_kelamin} onChange={handleInputChange} disabled={isDetailMode} className={inputClass}>
+                      <select name="jenis_kelamin" value={formData.jenis_kelamin} onChange={handleInputChange} disabled={isDetailMode} className={inputClass('jenis_kelamin')}>
                         <option value="laki-laki">Laki-laki</option>
                         <option value="perempuan">Perempuan</option>
                       </select>
                     </div>
-                    <div><label className="block text-[12px] font-bold text-[#071E3D] mb-1">Kebangsaan</label><input type="text" name="kebangsaan" value={formData.kebangsaan} onChange={handleInputChange} disabled={isDetailMode} className={inputClass}/></div>
+                    <div><label className="block text-[12px] font-bold text-[#071E3D] mb-1">Kebangsaan</label><input type="text" name="kebangsaan" value={formData.kebangsaan} onChange={handleInputChange} disabled={isDetailMode} className={inputClass('kebangsaan')}/></div>
                   </div>
                 </div>
 
@@ -470,44 +544,66 @@ const TambahAsesi = () => {
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="md:col-span-2">
                       <label className="block text-[12px] font-bold text-[#071E3D] mb-1">Alamat Lengkap</label>
-                      <textarea name="alamat" rows="2" value={formData.alamat} onChange={handleInputChange} disabled={isDetailMode} placeholder="Nama jalan, perumahan, gang..." className={`${inputClass} resize-none`}></textarea>
+                      <textarea name="alamat" rows="2" value={formData.alamat} onChange={handleInputChange} disabled={isDetailMode} placeholder="Nama jalan, perumahan, gang..." className={`${inputClass('alamat')} resize-none`}></textarea>
                     </div>
-                    <div>
-                      <label className="block text-[12px] font-bold text-[#071E3D] mb-1">Provinsi</label>
-                      <select onChange={handleProvinsiChange} value={selectedProvinsiId} disabled={isDetailMode} className={inputClass}>
-                        <option value="">Pilih Provinsi</option>
-                        {provinsiList.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
-                      </select>
-                      {!selectedProvinsiId && formData.provinsi && <small className="text-[#CC6B27] text-[10px] font-bold mt-1 block">Tersimpan: {formData.provinsi}</small>}
-                    </div>
-                    <div>
-                      <label className="block text-[12px] font-bold text-[#071E3D] mb-1">Kota / Kabupaten</label>
-                      <select onChange={handleKotaChange} value={selectedKotaId} disabled={!selectedProvinsiId || isDetailMode} className={inputClass}>
-                        <option value="">Pilih Kota</option>
-                        {kotaList.map(k => <option key={k.id} value={k.id}>{k.name}</option>)}
-                      </select>
-                      {!selectedKotaId && formData.kota && <small className="text-[#CC6B27] text-[10px] font-bold mt-1 block">Tersimpan: {formData.kota}</small>}
-                    </div>
-                    <div>
-                      <label className="block text-[12px] font-bold text-[#071E3D] mb-1">Kecamatan</label>
-                      <select onChange={handleKecamatanChange} value={selectedKecamatanId} disabled={!selectedKotaId || isDetailMode} className={inputClass}>
-                        <option value="">Pilih Kecamatan</option>
-                        {kecamatanList.map(k => <option key={k.id} value={k.id}>{k.name}</option>)}
-                      </select>
-                      {!selectedKecamatanId && formData.kecamatan && <small className="text-[#CC6B27] text-[10px] font-bold mt-1 block">Tersimpan: {formData.kecamatan}</small>}
-                    </div>
-                    <div>
-                      <label className="block text-[12px] font-bold text-[#071E3D] mb-1">Kelurahan</label>
-                      <select onChange={handleKelurahanChange} disabled={!selectedKecamatanId || isDetailMode} className={inputClass}>
-                        <option value="">Pilih Kelurahan</option>
-                        {kelurahanList.map(k => <option key={k.id} value={k.id}>{k.name}</option>)}
-                      </select>
-                      {formData.kelurahan && <small className="text-[#CC6B27] text-[10px] font-bold mt-1 block">Tersimpan: {formData.kelurahan}</small>}
-                    </div>
+                    
+                    {/* Logika Perbaikan Tampilan Dropdown Wilayah */}
+                    {isDetailMode ? (
+                      <>
+                        <div>
+                          <label className="block text-[12px] font-bold text-[#071E3D] mb-1">Provinsi</label>
+                          <input type="text" value={formData.provinsi || '-'} disabled className={inputClass('provinsi')} />
+                        </div>
+                        <div>
+                          <label className="block text-[12px] font-bold text-[#071E3D] mb-1">Kota / Kabupaten</label>
+                          <input type="text" value={formData.kota || '-'} disabled className={inputClass('kota')} />
+                        </div>
+                        <div>
+                          <label className="block text-[12px] font-bold text-[#071E3D] mb-1">Kecamatan</label>
+                          <input type="text" value={formData.kecamatan || '-'} disabled className={inputClass('kecamatan')} />
+                        </div>
+                        <div>
+                          <label className="block text-[12px] font-bold text-[#071E3D] mb-1">Kelurahan</label>
+                          <input type="text" value={formData.kelurahan || '-'} disabled className={inputClass('kelurahan')} />
+                        </div>
+                      </>
+                    ) : (
+                      <>
+                        <div>
+                          <label className="block text-[12px] font-bold text-[#071E3D] mb-1">Provinsi</label>
+                          <select onChange={handleProvinsiChange} value={selectedProvinsiId} className={inputClass('provinsi')}>
+                            <option value="">{formData.provinsi ? `[Tersimpan] ${formData.provinsi}` : 'Pilih Provinsi'}</option>
+                            {provinsiList.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+                          </select>
+                        </div>
+                        <div>
+                          <label className="block text-[12px] font-bold text-[#071E3D] mb-1">Kota / Kabupaten</label>
+                          <select onChange={handleKotaChange} value={selectedKotaId} disabled={!selectedProvinsiId && !formData.kota} className={inputClass('kota')}>
+                            <option value="">{formData.kota && !selectedProvinsiId ? `[Tersimpan] ${formData.kota}` : 'Pilih Kota'}</option>
+                            {kotaList.map(k => <option key={k.id} value={k.id}>{k.name}</option>)}
+                          </select>
+                        </div>
+                        <div>
+                          <label className="block text-[12px] font-bold text-[#071E3D] mb-1">Kecamatan</label>
+                          <select onChange={handleKecamatanChange} value={selectedKecamatanId} disabled={!selectedKotaId && !formData.kecamatan} className={inputClass('kecamatan')}>
+                            <option value="">{formData.kecamatan && !selectedKotaId ? `[Tersimpan] ${formData.kecamatan}` : 'Pilih Kecamatan'}</option>
+                            {kecamatanList.map(k => <option key={k.id} value={k.id}>{k.name}</option>)}
+                          </select>
+                        </div>
+                        <div>
+                          <label className="block text-[12px] font-bold text-[#071E3D] mb-1">Kelurahan</label>
+                          <select onChange={handleKelurahanChange} disabled={!selectedKecamatanId && !formData.kelurahan} className={inputClass('kelurahan')}>
+                            <option value="">{formData.kelurahan && !selectedKecamatanId ? `[Tersimpan] ${formData.kelurahan}` : 'Pilih Kelurahan'}</option>
+                            {kelurahanList.map(k => <option key={k.id} value={k.id}>{k.name}</option>)}
+                          </select>
+                        </div>
+                      </>
+                    )}
+
                     <div className="grid grid-cols-3 gap-3 md:col-span-2">
-                      <div><label className="block text-[12px] font-bold text-[#071E3D] mb-1">RT</label><input type="text" name="rt" value={formData.rt} onChange={handleInputChange} disabled={isDetailMode} className={inputClass}/></div>
-                      <div><label className="block text-[12px] font-bold text-[#071E3D] mb-1">RW</label><input type="text" name="rw" value={formData.rw} onChange={handleInputChange} disabled={isDetailMode} className={inputClass}/></div>
-                      <div><label className="block text-[12px] font-bold text-[#071E3D] mb-1">Kode Pos</label><input type="text" name="kode_pos" value={formData.kode_pos} onChange={handleInputChange} disabled={isDetailMode} className={inputClass}/></div>
+                      <div><label className="block text-[12px] font-bold text-[#071E3D] mb-1">RT</label><input type="text" name="rt" value={formData.rt} onChange={handleInputChange} disabled={isDetailMode} className={inputClass('rt')}/></div>
+                      <div><label className="block text-[12px] font-bold text-[#071E3D] mb-1">RW</label><input type="text" name="rw" value={formData.rw} onChange={handleInputChange} disabled={isDetailMode} className={inputClass('rw')}/></div>
+                      <div><label className="block text-[12px] font-bold text-[#071E3D] mb-1">Kode Pos</label><input type="text" name="kode_pos" value={formData.kode_pos} onChange={handleInputChange} disabled={isDetailMode} className={inputClass('kode_pos')}/></div>
                     </div>
                   </div>
                 </div>
@@ -520,7 +616,7 @@ const TambahAsesi = () => {
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
                       <label className="block text-[12px] font-bold text-[#071E3D] mb-1">Pendidikan Terakhir</label>
-                      <select name="pendidikan_terakhir" value={formData.pendidikan_terakhir} onChange={handleInputChange} disabled={isDetailMode} className={inputClass}>
+                      <select name="pendidikan_terakhir" value={formData.pendidikan_terakhir} onChange={handleInputChange} disabled={isDetailMode} className={inputClass('pendidikan_terakhir')}>
                         <option value="SD">SD</option>
                         <option value="SMP">SMP</option>
                         <option value="SMA/SMK">SMA/SMK</option>
@@ -531,19 +627,23 @@ const TambahAsesi = () => {
                         <option value="S3">S3</option>
                       </select>
                     </div>
-                    <div><label className="block text-[12px] font-bold text-[#071E3D] mb-1">Tahun Lulus</label><input type="number" name="tahun_lulus" value={formData.tahun_lulus} onChange={handleInputChange} disabled={isDetailMode} className={inputClass}/></div>
-                    <div><label className="block text-[12px] font-bold text-[#071E3D] mb-1">Institusi / Universitas</label><input type="text" name="universitas" value={formData.universitas} onChange={handleInputChange} disabled={isDetailMode} className={inputClass}/></div>
-                    <div><label className="block text-[12px] font-bold text-[#071E3D] mb-1">Jurusan</label><input type="text" name="jurusan" value={formData.jurusan} onChange={handleInputChange} disabled={isDetailMode} className={inputClass}/></div>
+                    <div>
+                      <label className="block text-[12px] font-bold text-[#071E3D] mb-1">Tahun Lulus</label>
+                      <input type="number" name="tahun_lulus" value={formData.tahun_lulus} onChange={handleInputChange} disabled={isDetailMode} className={inputClass('tahun_lulus')}/>
+                      {errors.tahun_lulus && <span className="text-[11px] text-red-500 font-medium block mt-1">{errors.tahun_lulus}</span>}
+                    </div>
+                    <div><label className="block text-[12px] font-bold text-[#071E3D] mb-1">Institusi / Universitas</label><input type="text" name="universitas" value={formData.universitas} onChange={handleInputChange} disabled={isDetailMode} className={inputClass('universitas')}/></div>
+                    <div><label className="block text-[12px] font-bold text-[#071E3D] mb-1">Jurusan</label><input type="text" name="jurusan" value={formData.jurusan} onChange={handleInputChange} disabled={isDetailMode} className={inputClass('jurusan')}/></div>
                     <div className="border-t border-[#071E3D]/10 col-span-2 my-2"></div>
-                    <div><label className="block text-[12px] font-bold text-[#071E3D] mb-1 flex items-center gap-1"><Briefcase size={12}/>Pekerjaan Saat Ini</label><input type="text" name="pekerjaan" value={formData.pekerjaan} onChange={handleInputChange} disabled={isDetailMode} className={inputClass}/></div>
-                    <div><label className="block text-[12px] font-bold text-[#071E3D] mb-1">Jabatan</label><input type="text" name="jabatan" value={formData.jabatan} onChange={handleInputChange} disabled={isDetailMode} className={inputClass}/></div>
-                    <div className="md:col-span-2"><label className="block text-[12px] font-bold text-[#071E3D] mb-1">Nama Perusahaan / Instansi</label><input type="text" name="nama_perusahaan" value={formData.nama_perusahaan} onChange={handleInputChange} disabled={isDetailMode} className={inputClass}/></div>
+                    <div><label className="block text-[12px] font-bold text-[#071E3D] mb-1 flex items-center gap-1"><Briefcase size={12}/>Pekerjaan Saat Ini</label><input type="text" name="pekerjaan" value={formData.pekerjaan} onChange={handleInputChange} disabled={isDetailMode} className={inputClass('pekerjaan')}/></div>
+                    <div><label className="block text-[12px] font-bold text-[#071E3D] mb-1">Jabatan</label><input type="text" name="jabatan" value={formData.jabatan} onChange={handleInputChange} disabled={isDetailMode} className={inputClass('jabatan')}/></div>
+                    <div className="md:col-span-2"><label className="block text-[12px] font-bold text-[#071E3D] mb-1">Nama Perusahaan / Instansi</label><input type="text" name="nama_perusahaan" value={formData.nama_perusahaan} onChange={handleInputChange} disabled={isDetailMode} className={inputClass('nama_perusahaan')}/></div>
                     <div className="md:col-span-2">
                       <label className="block text-[12px] font-bold text-[#071E3D] mb-1">Alamat Perusahaan</label>
-                      <textarea name="alamat_perusahaan" rows="2" value={formData.alamat_perusahaan} onChange={handleInputChange} disabled={isDetailMode} className={`${inputClass} resize-none`}></textarea>
+                      <textarea name="alamat_perusahaan" rows="2" value={formData.alamat_perusahaan} onChange={handleInputChange} disabled={isDetailMode} className={`${inputClass('alamat_perusahaan')} resize-none`}></textarea>
                     </div>
-                    <div><label className="block text-[12px] font-bold text-[#071E3D] mb-1">Telp. Perusahaan</label><input type="text" name="telp_perusahaan" value={formData.telp_perusahaan} onChange={handleInputChange} disabled={isDetailMode} className={inputClass}/></div>
-                    <div><label className="block text-[12px] font-bold text-[#071E3D] mb-1">Email Perusahaan</label><input type="email" name="email_perusahaan" value={formData.email_perusahaan} onChange={handleInputChange} disabled={isDetailMode} className={inputClass}/></div>
+                    <div><label className="block text-[12px] font-bold text-[#071E3D] mb-1">Telp. Perusahaan</label><input type="text" name="telp_perusahaan" value={formData.telp_perusahaan} onChange={handleInputChange} disabled={isDetailMode} className={inputClass('telp_perusahaan')}/></div>
+                    <div><label className="block text-[12px] font-bold text-[#071E3D] mb-1">Email Perusahaan</label><input type="email" name="email_perusahaan" value={formData.email_perusahaan} onChange={handleInputChange} disabled={isDetailMode} className={inputClass('email_perusahaan')}/></div>
                   </div>
                 </div>
 
