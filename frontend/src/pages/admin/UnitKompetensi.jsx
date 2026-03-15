@@ -1,11 +1,13 @@
 import React, { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import api from "../../services/api";
 import Swal from "sweetalert2";
 import { 
-  Plus, Edit, Trash2, Save, X, BookOpen, Search, Loader2, List
+  Plus, Edit, Trash2, Save, X, BookOpen, Search, Loader2, Database
 } from 'lucide-react';
 
 const UnitKompetensi = () => {
+  const navigate = useNavigate();
   // --- STATE ---
   const [dataList, setDataList] = useState([]);
   const [filteredData, setFilteredData] = useState([]);
@@ -100,7 +102,7 @@ const UnitKompetensi = () => {
   // ==========================================
   const validateForm = () => {
     if (!formData.id_skkni) {
-      return "Pilih Standar/SKKNI rujukan terlebih dahulu!";
+      return "Silakan pilih Standar/SKKNI rujukan terlebih dahulu!";
     }
     
     const kode = String(formData.kode_unit).trim();
@@ -251,7 +253,7 @@ const UnitKompetensi = () => {
                       <option value="">-- Pilih SKKNI --</option>
                       {skkniList.map(sk => (
                         <option key={sk.id_skkni} value={sk.id_skkni}>
-                          {sk.judul_skkni} ({sk.no_skkni})
+                          {sk.judul_skkni} {sk.no_skkni ? `(${sk.no_skkni})` : ''}
                         </option>
                       ))}
                     </select>
@@ -321,12 +323,32 @@ const UnitKompetensi = () => {
                     <td className="py-4 px-4 text-center font-semibold text-[#071E3D]">{index + 1}</td>
                     <td className="py-4 px-4 font-bold text-[#CC6B27]">{item.kode_unit}</td>
                     <td className="py-4 px-4 font-medium text-[#182D4A]">{item.judul_unit}</td>
+                    
+                    {/* KOLOM RUJUKAN STANDAR */}
                     <td className="py-4 px-4 text-[#182D4A]/70 text-[12px] leading-relaxed">
-                      <span className="font-bold text-[#071E3D] block">{item.skkni?.no_skkni || "-"}</span>
-                      {item.skkni?.judul_skkni || "-"}
+                      {item.skkni ? (
+                        <>
+                          <span className="font-bold text-[#071E3D] block">{item.skkni.no_skkni || ""}</span>
+                          {item.skkni.judul_skkni || ""}
+                        </>
+                      ) : (
+                        <span className="italic text-gray-400">Tidak ada rujukan</span>
+                      )}
                     </td>
+
+                    {/* KOLOM AKSI */}
                     <td className="py-4 px-4 text-center">
                       <div className="flex items-center justify-center gap-2">
+                        
+                        {/* TOMBOL NAVIGASI KE BANK SOAL */}
+                        <button
+                          onClick={() => navigate(`/admin/bank-soal?unit=${item.id_unit}`)}
+                          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-white bg-blue-600 hover:bg-blue-700 transition-all shadow-sm text-[12px] font-bold border border-blue-600 hover:border-blue-700"
+                          title="Kelola Bank Soal untuk Unit Ini"
+                        >
+                          <Database size={14} /> Bank Soal
+                        </button>
+
                         <button
                           onClick={() => handleEdit(item)}
                           className="inline-flex p-2 rounded-lg text-[#182D4A] bg-slate-100 hover:bg-[#CC6B27] hover:text-white transition-all shadow-sm"
