@@ -4,7 +4,7 @@ import api from "../../services/api";
 import { getProvinsi, getKota, getKecamatan, getKelurahan } from "../../services/wilayah.service";
 import { 
   Search, Plus, Eye, Edit2, Trash2, X, Save, Upload, FileSpreadsheet,
-  MapPin, User, Building2, Loader2, FileText, Home
+  MapPin, User, Building2, Loader2, FileText, Home, Mail, Key
 } from 'lucide-react';
 
 const TempatUji = () => {
@@ -89,7 +89,7 @@ const TempatUji = () => {
     } catch (err) { console.error("Gagal load provinsi", err); }
   };
 
-  // --- HANDLER WILAYAH (Diperbaiki jadi robust) ---
+  // --- HANDLER WILAYAH ---
   const handleProvinsiChange = async (e) => {
     const id = e.target.value;
     const name = id ? provinsiList.find(p => String(p.id) === String(id))?.name : '';
@@ -141,7 +141,6 @@ const TempatUji = () => {
     setFormData(prev => ({ ...prev, kelurahan: name || '' }));
   };
 
-  // Derived ID dari nama (Untuk controlled select value)
   const selectedProvinsiId = provinsiList.find(p => p.name === formData.provinsi)?.id || "";
   const selectedKotaId = kotaList.find(k => k.name === formData.kota)?.id || "";
   const selectedKecamatanId = kecamatanList.find(k => k.name === formData.kecamatan)?.id || "";
@@ -189,14 +188,13 @@ const TempatUji = () => {
         masa_berlaku_lisensi: toDateInput(item.masa_berlaku_lisensi),
         status: item.status || 'aktif'
       });
-      return item; // Return the exact item object for subsequent chained fetching
+      return item;
     } catch (error) {
       Swal.fire({title: 'Error', text: 'Gagal mengambil detail TUK', icon: 'error', confirmButtonColor: '#CC6B27'});
       return null;
     }
   };
 
-  // Otomatis Fetch Wilayah beruntun jika dalam Mode Edit 
   const fetchDependentRegions = async (item) => {
     if (!item.provinsi) return;
     const provMatch = provinsiList.find(p => p.name === item.provinsi);
@@ -236,7 +234,7 @@ const TempatUji = () => {
       setCurrentId(id);
       setIsEditMode(true);
       setShowModal(true);
-      await fetchDependentRegions(item); // Load lists agar select dropdown tidak disabled
+      await fetchDependentRegions(item);
     }
   };
 
@@ -246,6 +244,57 @@ const TempatUji = () => {
     if (item) {
       setIsDetailMode(true);
       setShowModal(true);
+    }
+  };
+
+  // --- ACTIONS ---
+  const handleSendEmail = async (id_user) => {
+    if (!id_user) {
+      return Swal.fire({title: 'Peringatan', text: 'ID User (Penanggung Jawab) tidak ditemukan untuk TUK ini.', icon: 'warning', confirmButtonColor: '#CC6B27'});
+    }
+    const confirm = await Swal.fire({
+      title: 'Kirim Email Akun?',
+      text: "Kirim email berisi informasi login ke TUK ini?",
+      icon: 'question',
+      showCancelButton: true,
+      confirmButtonColor: '#CC6B27',
+      cancelButtonColor: '#182D4A',
+      confirmButtonText: 'Ya, Kirim',
+      cancelButtonText: 'Batal'
+    });
+
+    if (confirm.isConfirmed) {
+      try {
+        await api.post(`/admin/send-email/${id_user}`);
+        Swal.fire({title: 'Terkirim', text: 'Email berhasil dikirim.', icon: 'success', confirmButtonColor: '#CC6B27'});
+      } catch (error) {
+        Swal.fire({title: 'Gagal', text: error.response?.data?.message || 'Gagal mengirim email', icon: 'error', confirmButtonColor: '#CC6B27'});
+      }
+    }
+  };
+
+  const handleResetPassword = async (id_user) => {
+    if (!id_user) {
+      return Swal.fire({title: 'Peringatan', text: 'ID User (Penanggung Jawab) tidak ditemukan untuk TUK ini.', icon: 'warning', confirmButtonColor: '#CC6B27'});
+    }
+    const confirm = await Swal.fire({
+      title: 'Reset Password?',
+      text: "Password akan direset dan dikirimkan ke email TUK. Lanjutkan?",
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonColor: '#EF4444',
+      cancelButtonColor: '#182D4A',
+      confirmButtonText: 'Ya, Reset',
+      cancelButtonText: 'Batal'
+    });
+
+    if (confirm.isConfirmed) {
+      try {
+        await api.put(`/admin/tuk/${id_user}/reset-password`);
+        Swal.fire({title: 'Sukses', text: 'Password berhasil direset dan dikirim ke email.', icon: 'success', confirmButtonColor: '#CC6B27'});
+      } catch (error) {
+        Swal.fire({title: 'Gagal', text: error.response?.data?.message || 'Gagal mereset password', icon: 'error', confirmButtonColor: '#CC6B27'});
+      }
     }
   };
 
@@ -366,7 +415,7 @@ const TempatUji = () => {
                 <th className="py-3.5 px-4">Nama TUK</th>
                 <th className="py-3.5 px-4">Jenis</th>
                 <th className="py-3.5 px-4 text-center">Status</th>
-                <th className="py-3.5 px-4 text-center w-32">Aksi</th>
+                <th className="py-3.5 px-4 text-center w-40">Aksi</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-[#071E3D]/5">
@@ -401,7 +450,9 @@ const TempatUji = () => {
                       </span>
                     </td>
                     <td className="py-4 px-4">
-                      <div className="flex justify-center gap-1.5">
+                      <div className="flex justify-center gap-1">
+                        <button onClick={() => handleSendEmail(item.penanggungJawab?.id_user)} className="p-1.5 rounded-lg text-[#182D4A] hover:text-[#071E3D] hover:bg-[#071E3D]/10 transition-colors" title="Kirim Email Akun"><Mail size={18}/></button>
+                        <button onClick={() => handleResetPassword(item.penanggungJawab?.id_user)} className="p-1.5 rounded-lg text-[#182D4A] hover:text-[#071E3D] hover:bg-[#071E3D]/10 transition-colors" title="Reset Password"><Key size={18}/></button>
                         <button onClick={() => openDetailModal(item.id_tuk)} className="p-1.5 rounded-lg text-[#182D4A] hover:text-[#CC6B27] hover:bg-[#CC6B27]/10 transition-colors" title="Detail"><Eye size={18}/></button>
                         <button onClick={() => openEditModal(item.id_tuk)} className="p-1.5 rounded-lg text-[#182D4A] hover:text-[#071E3D] hover:bg-[#071E3D]/10 transition-colors" title="Edit"><Edit2 size={18}/></button>
                         <button onClick={() => handleDelete(item.id_tuk)} className="p-1.5 rounded-lg text-[#182D4A] hover:text-red-600 hover:bg-red-50 transition-colors" title="Hapus"><Trash2 size={18}/></button>
