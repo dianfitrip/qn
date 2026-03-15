@@ -168,8 +168,16 @@ const TambahAsesi = () => {
     } else if (name === 'nama_lengkap') {
       if (!value || value.trim() === '') errorMsg = 'Nama Lengkap wajib diisi.';
     } else if (name === 'tahun_lulus' && value) {
+      const year = parseInt(value, 10);
       const currentYear = new Date().getFullYear();
-      if (parseInt(value) > currentYear) errorMsg = 'tahun lulusnya dari masa depan nih? Maksimal tahun ini ya.';
+      
+      if (value.length !== 4) {
+        errorMsg = 'Tahun lulus harus 4 digit angka (misal: 2022).';
+      } else if (year < 1950) {
+        errorMsg = 'Tahun lulus tidak valid (minimal 1950).';
+      } else if (year > currentYear) {
+        errorMsg = 'Tahun lulus tidak boleh dimasa depan.';
+      }
     } else if (name === 'tanggal_lahir' && value) {
       const selectedDate = new Date(value);
       const today = new Date();
@@ -188,10 +196,20 @@ const TambahAsesi = () => {
   const handleInputChange = (e) => {
     const { name, value } = e.target;
     
-    // Auto hapus huruf untuk form yang wajib angka (Termasuk telp_perusahaan)
     let finalValue = value;
-    if (['nik', 'no_hp', 'rt', 'rw', 'kode_pos', 'telp_perusahaan'].includes(name)) {
-      finalValue = value.replace(/\D/g, ''); // \D berarti karakter non-digit dihapus
+    
+    // 1. Auto hapus huruf untuk form yang WAJIB ANGKA
+    if (['nik', 'no_hp', 'rt', 'rw', 'kode_pos', 'telp_perusahaan', 'tahun_lulus'].includes(name)) {
+      finalValue = value.replace(/\D/g, ''); // \D berarti karakter selain angka dihapus
+    }
+    // 2. Auto hapus angka untuk form yang WAJIB HURUF (Nama, Jabatan, Pendidikan, dll)
+    else if (['nama_lengkap', 'jabatan', 'pekerjaan', 'universitas', 'jurusan', 'tempat_lahir', 'kebangsaan'].includes(name)) {
+      finalValue = value.replace(/[0-9]/g, ''); // Hapus jika ada inputan angka 0-9
+    }
+
+    // Batasi input tahun lulus maksimal 4 digit
+    if (name === 'tahun_lulus' && finalValue.length > 4) {
+      finalValue = finalValue.slice(0, 4);
     }
 
     setFormData(prev => ({ ...prev, [name]: finalValue }));
@@ -205,16 +223,14 @@ const TambahAsesi = () => {
     // Cek semua validasi sebelum memproses
     let isValid = true;
     Object.keys(formData).forEach(key => {
-      // Email dan No HP tidak ikut dikirim pada edit, jadi tak perlu blok validasi saat edit
       if (['email', 'no_hp', 'nik'].includes(key) && isEditMode) return; 
-      
       if (!validateInput(key, formData[key])) {
         isValid = false;
       }
     });
 
     if (!isValid) {
-      return Swal.fire('Peringatan', 'Silakan perbaiki isian yang masih kosong atau formatnya salah!', 'warning');
+      return Swal.fire('Peringatan', 'Silakan perbaiki isian yang masih kosong atau ada peringatan merah!', 'warning');
     }
 
     if (!isEditMode) return;
@@ -226,7 +242,6 @@ const TambahAsesi = () => {
       if (payload.tanggal_lahir === "") payload.tanggal_lahir = null;
       payload.tahun_lulus = payload.tahun_lulus ? parseInt(payload.tahun_lulus) : null;
 
-      // Hapus data email & no hp dari payload karena beda tabel
       delete payload.email;
       delete payload.no_hp;
 
@@ -361,7 +376,6 @@ const TambahAsesi = () => {
     item.nik?.includes(searchTerm)
   );
 
-  // Helper Class Style
   const inputClass = (name) => `w-full p-2.5 border rounded-lg text-[13px] text-[#071E3D] bg-[#FAFAFA] focus:bg-white focus:outline-none transition-all disabled:opacity-70 disabled:bg-gray-100 font-medium placeholder:text-[#182D4A]/40
     ${errors[name] ? 'border-red-500 focus:border-red-500 focus:ring-1 focus:ring-red-500' : 'border-[#071E3D]/20 focus:border-[#CC6B27] focus:ring-2 focus:ring-[#CC6B27]/10'}
   `;
@@ -504,7 +518,7 @@ const TambahAsesi = () => {
                     </div>
                     <div>
                       <label className="block text-[12px] font-bold text-[#071E3D] mb-1">Nama Lengkap <span className="text-red-500">*</span></label>
-                      <input type="text" name="nama_lengkap" value={formData.nama_lengkap} onChange={handleInputChange} required disabled={isDetailMode} placeholder="Nama lengkap" className={inputClass('nama_lengkap')}/>
+                      <input type="text" name="nama_lengkap" value={formData.nama_lengkap} onChange={handleInputChange} required disabled={isDetailMode} placeholder="Nama lengkap tanpa angka" className={inputClass('nama_lengkap')}/>
                       {errors.nama_lengkap && <span className="text-[11px] text-red-500 font-medium block mt-1">{errors.nama_lengkap}</span>}
                     </div>
                     <div>
@@ -519,7 +533,7 @@ const TambahAsesi = () => {
                       {errors.no_hp && <span className="text-[11px] text-red-500 font-medium block mt-1">{errors.no_hp}</span>}
                     </div>
                     
-                    <div><label className="block text-[12px] font-bold text-[#071E3D] mb-1">Tempat Lahir</label><input type="text" name="tempat_lahir" value={formData.tempat_lahir} onChange={handleInputChange} disabled={isDetailMode} className={inputClass('tempat_lahir')}/></div>
+                    <div><label className="block text-[12px] font-bold text-[#071E3D] mb-1">Tempat Lahir</label><input type="text" name="tempat_lahir" value={formData.tempat_lahir} onChange={handleInputChange} disabled={isDetailMode} placeholder="Hanya huruf" className={inputClass('tempat_lahir')}/></div>
                     <div>
                       <label className="block text-[12px] font-bold text-[#071E3D] mb-1">Tanggal Lahir</label>
                       <input type="date" name="tanggal_lahir" value={formData.tanggal_lahir} onChange={handleInputChange} disabled={isDetailMode} className={inputClass('tanggal_lahir')}/>
@@ -532,7 +546,7 @@ const TambahAsesi = () => {
                         <option value="perempuan">Perempuan</option>
                       </select>
                     </div>
-                    <div><label className="block text-[12px] font-bold text-[#071E3D] mb-1">Kebangsaan</label><input type="text" name="kebangsaan" value={formData.kebangsaan} onChange={handleInputChange} disabled={isDetailMode} className={inputClass('kebangsaan')}/></div>
+                    <div><label className="block text-[12px] font-bold text-[#071E3D] mb-1">Kebangsaan</label><input type="text" name="kebangsaan" value={formData.kebangsaan} onChange={handleInputChange} disabled={isDetailMode} placeholder="Hanya huruf" className={inputClass('kebangsaan')}/></div>
                   </div>
                 </div>
 
@@ -547,7 +561,6 @@ const TambahAsesi = () => {
                       <textarea name="alamat" rows="2" value={formData.alamat} onChange={handleInputChange} disabled={isDetailMode} placeholder="Nama jalan, perumahan, gang..." className={`${inputClass('alamat')} resize-none`}></textarea>
                     </div>
                     
-                    {/* Logika Perbaikan Tampilan Dropdown Wilayah Mode Detail */}
                     {isDetailMode ? (
                       <>
                         <div>
@@ -629,14 +642,14 @@ const TambahAsesi = () => {
                     </div>
                     <div>
                       <label className="block text-[12px] font-bold text-[#071E3D] mb-1">Tahun Lulus</label>
-                      <input type="number" name="tahun_lulus" value={formData.tahun_lulus} onChange={handleInputChange} disabled={isDetailMode} className={inputClass('tahun_lulus')}/>
+                      <input type="text" name="tahun_lulus" value={formData.tahun_lulus} onChange={handleInputChange} disabled={isDetailMode} placeholder="YYYY (Misal: 2020)" className={inputClass('tahun_lulus')}/>
                       {errors.tahun_lulus && <span className="text-[11px] text-red-500 font-medium block mt-1">{errors.tahun_lulus}</span>}
                     </div>
-                    <div><label className="block text-[12px] font-bold text-[#071E3D] mb-1">Institusi / Universitas</label><input type="text" name="universitas" value={formData.universitas} onChange={handleInputChange} disabled={isDetailMode} className={inputClass('universitas')}/></div>
-                    <div><label className="block text-[12px] font-bold text-[#071E3D] mb-1">Jurusan</label><input type="text" name="jurusan" value={formData.jurusan} onChange={handleInputChange} disabled={isDetailMode} className={inputClass('jurusan')}/></div>
+                    <div><label className="block text-[12px] font-bold text-[#071E3D] mb-1">Institusi / Universitas</label><input type="text" name="universitas" value={formData.universitas} onChange={handleInputChange} disabled={isDetailMode} placeholder="Hanya huruf" className={inputClass('universitas')}/></div>
+                    <div><label className="block text-[12px] font-bold text-[#071E3D] mb-1">Jurusan</label><input type="text" name="jurusan" value={formData.jurusan} onChange={handleInputChange} disabled={isDetailMode} placeholder="Hanya huruf" className={inputClass('jurusan')}/></div>
                     <div className="border-t border-[#071E3D]/10 col-span-2 my-2"></div>
-                    <div><label className="block text-[12px] font-bold text-[#071E3D] mb-1 flex items-center gap-1"><Briefcase size={12}/>Pekerjaan Saat Ini</label><input type="text" name="pekerjaan" value={formData.pekerjaan} onChange={handleInputChange} disabled={isDetailMode} className={inputClass('pekerjaan')}/></div>
-                    <div><label className="block text-[12px] font-bold text-[#071E3D] mb-1">Jabatan</label><input type="text" name="jabatan" value={formData.jabatan} onChange={handleInputChange} disabled={isDetailMode} className={inputClass('jabatan')}/></div>
+                    <div><label className="block text-[12px] font-bold text-[#071E3D] mb-1 flex items-center gap-1"><Briefcase size={12}/>Pekerjaan Saat Ini</label><input type="text" name="pekerjaan" value={formData.pekerjaan} onChange={handleInputChange} disabled={isDetailMode} placeholder="Hanya huruf" className={inputClass('pekerjaan')}/></div>
+                    <div><label className="block text-[12px] font-bold text-[#071E3D] mb-1">Jabatan</label><input type="text" name="jabatan" value={formData.jabatan} onChange={handleInputChange} disabled={isDetailMode} placeholder="Hanya huruf" className={inputClass('jabatan')}/></div>
                     <div className="md:col-span-2"><label className="block text-[12px] font-bold text-[#071E3D] mb-1">Nama Perusahaan / Instansi</label><input type="text" name="nama_perusahaan" value={formData.nama_perusahaan} onChange={handleInputChange} disabled={isDetailMode} className={inputClass('nama_perusahaan')}/></div>
                     <div className="md:col-span-2">
                       <label className="block text-[12px] font-bold text-[#071E3D] mb-1">Alamat Perusahaan</label>
