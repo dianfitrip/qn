@@ -3,7 +3,7 @@ import api from "../../services/api";
 import Swal from "sweetalert2";
 import { 
   Search, Loader2, Download, Filter, 
-  Calendar, FileText, BarChart2, CheckCircle, XCircle, Users
+  Calendar, FileText, BarChart2, CheckCircle, XCircle, Users, Clock
 } from 'lucide-react';
 import * as XLSX from 'xlsx'; 
 
@@ -39,25 +39,33 @@ const LaporanSertifikasi = () => {
       // TRIK: Tarik data Jadwal DAN Peserta secara bersamaan
       const [resJadwal, resPeserta] = await Promise.all([
         api.get('/admin/jadwal'),
-        api.get('/admin/peserta-jadwal/global') // Pastikan endpoint ini aktif
+        api.get('/admin/peserta-jadwal/global')
       ]);
 
       const jadwals = resJadwal.data?.data || resJadwal.data?.rows || [];
       const pesertas = resPeserta.data?.data || resPeserta.data?.rows || [];
 
-      // 1. Lakukan Pencocokan Data secara Manual
+      // 1. Lakukan Pencocokan Data & Perhitungan secara Manual
       const aggregatedData = jadwals.map(jadwal => {
         // Cari semua asesi yang masuk ke dalam jadwal ini
         const pesertaJadwalIni = pesertas.filter(p => p.id_jadwal === jadwal.id_jadwal);
         
+        let countTerjadwal = 0;
         let countK = 0;
         let countBK = 0;
 
-        // Hitung status kelulusan tiap asesi
+        // PERBAIKAN: Mengecek field status_asesmen dari Backend
         pesertaJadwalIni.forEach(p => {
-          const status = (p.status_kelulusan || "").toLowerCase();
-          if (status === 'kompeten' || status === 'k') countK++;
-          if (status === 'belum_kompeten' || status === 'belum kompeten' || status === 'bk') countBK++;
+          const status = (p.status_asesmen || p.status_kelulusan || "").toLowerCase();
+          
+          if (status === 'kompeten' || status === 'k') {
+            countK++;
+          } else if (status === 'belum_kompeten' || status === 'belum kompeten' || status === 'bk') {
+            countBK++;
+          } else {
+            // Jika statusnya terdaftar, pra_asesmen, asesmen, atau lainnya, berarti masih Terjadwal/Proses
+            countTerjadwal++;
+          }
         });
 
         return {
@@ -66,6 +74,7 @@ const LaporanSertifikasi = () => {
           tanggal: jadwal.tanggal_waktu || jadwal.tanggal_mulai || jadwal.tanggal || '',
           tuk: jadwal.tuk?.nama_tuk || 'TUK Belum Ditentukan',
           total_asesi: pesertaJadwalIni.length,
+          terjadwal: countTerjadwal,
           kompeten: countK,
           belum_kompeten: countBK,
         };
@@ -119,6 +128,7 @@ const LaporanSertifikasi = () => {
 
   // --- CALCULATE TOTALS ---
   const sumAsesi = filteredData.reduce((sum, item) => sum + (item.total_asesi || 0), 0);
+  const sumTerjadwal = filteredData.reduce((sum, item) => sum + (item.terjadwal || 0), 0);
   const sumK = filteredData.reduce((sum, item) => sum + (item.kompeten || 0), 0);
   const sumBK = filteredData.reduce((sum, item) => sum + (item.belum_kompeten || 0), 0);
 
@@ -134,6 +144,7 @@ const LaporanSertifikasi = () => {
       'Tanggal Pelaksanaan': item.tanggal ? new Date(item.tanggal).toLocaleDateString('id-ID') : '-',
       'Tempat Uji Kompetensi (TUK)': item.tuk,
       'Total Asesi': item.total_asesi,
+      'Terjadwal (Belum Dinilai)': item.terjadwal,
       'Kompeten (K)': item.kompeten,
       'Belum Kompeten (BK)': item.belum_kompeten
     }));
@@ -144,6 +155,7 @@ const LaporanSertifikasi = () => {
       'Tanggal Pelaksanaan': '',
       'Tempat Uji Kompetensi (TUK)': '',
       'Total Asesi': sumAsesi,
+      'Terjadwal (Belum Dinilai)': sumTerjadwal,
       'Kompeten (K)': sumK,
       'Belum Kompeten (BK)': sumBK
     });
@@ -152,7 +164,8 @@ const LaporanSertifikasi = () => {
     const workbook = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(workbook, worksheet, "Laporan Sertifikasi");
     
-    const wscols = [{wch:5}, {wch:40}, {wch:20}, {wch:35}, {wch:15}, {wch:15}, {wch:20}];
+    // Perlebar kolom Excel
+    const wscols = [{wch:5}, {wch:40}, {wch:20}, {wch:35}, {wch:12}, {wch:18}, {wch:15}, {wch:20}];
     worksheet['!cols'] = wscols;
 
     const fileName = `Laporan_Sertifikasi_${filterMonth ? months.find(m => m.value === filterMonth)?.label + '_' : ''}${filterYear || 'Semua'}.xlsx`;
@@ -179,10 +192,10 @@ const LaporanSertifikasi = () => {
         </button>
       </div>
 
-      {/* STATISTIK SINGKAT */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+      {/* STATISTIK SINGKAT (SEKARANG 4 KOLOM) */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <div className="bg-white p-5 rounded-xl border border-[#071E3D]/10 shadow-sm flex items-center gap-4">
-          <div className="w-12 h-12 rounded-full bg-blue-50 flex items-center justify-center">
+          <div className="w-12 h-12 rounded-full bg-blue-50 flex items-center justify-center shrink-0">
             <Users className="text-blue-600" size={24}/>
           </div>
           <div>
@@ -191,7 +204,16 @@ const LaporanSertifikasi = () => {
           </div>
         </div>
         <div className="bg-white p-5 rounded-xl border border-[#071E3D]/10 shadow-sm flex items-center gap-4">
-          <div className="w-12 h-12 rounded-full bg-green-50 flex items-center justify-center">
+          <div className="w-12 h-12 rounded-full bg-orange-50 flex items-center justify-center shrink-0">
+            <Clock className="text-[#CC6B27]" size={24}/>
+          </div>
+          <div>
+            <p className="text-[12px] font-bold text-[#182D4A]/60 uppercase mb-0.5">Terjadwal / Proses</p>
+            <h3 className="text-[24px] font-extrabold text-[#CC6B27] leading-none">{sumTerjadwal}</h3>
+          </div>
+        </div>
+        <div className="bg-white p-5 rounded-xl border border-[#071E3D]/10 shadow-sm flex items-center gap-4">
+          <div className="w-12 h-12 rounded-full bg-green-50 flex items-center justify-center shrink-0">
             <CheckCircle className="text-green-600" size={24}/>
           </div>
           <div>
@@ -200,7 +222,7 @@ const LaporanSertifikasi = () => {
           </div>
         </div>
         <div className="bg-white p-5 rounded-xl border border-[#071E3D]/10 shadow-sm flex items-center gap-4">
-          <div className="w-12 h-12 rounded-full bg-red-50 flex items-center justify-center">
+          <div className="w-12 h-12 rounded-full bg-red-50 flex items-center justify-center shrink-0">
             <XCircle className="text-red-600" size={24}/>
           </div>
           <div>
@@ -266,15 +288,16 @@ const LaporanSertifikasi = () => {
               <tr>
                 <th className="py-4 px-5 text-center w-12 rounded-tl-xl">No</th>
                 <th className="py-4 px-5">Skema & Pelaksanaan</th>
-                <th className="py-4 px-5 text-center">Total Asesi</th>
-                <th className="py-4 px-5 text-center">Kompeten (K)</th>
-                <th className="py-4 px-5 text-center">Belum Kompeten (BK)</th>
+                <th className="py-4 px-5 text-center w-28">Total Asesi</th>
+                <th className="py-4 px-5 text-center w-32">Terjadwal</th>
+                <th className="py-4 px-5 text-center w-32">Kompeten</th>
+                <th className="py-4 px-5 text-center w-36">Belum Kompeten</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-[#071E3D]/5">
               {loading ? (
                 <tr>
-                  <td colSpan="5" className="text-center py-16">
+                  <td colSpan="6" className="text-center py-16">
                     <Loader2 className="animate-spin text-[#CC6B27] mx-auto mb-3" size={36}/>
                     <p className="text-[#182D4A] font-medium text-[14px]">Menarik data dari server...</p>
                   </td>
@@ -293,16 +316,19 @@ const LaporanSertifikasi = () => {
                     </td>
                     <td className="py-4 px-5 text-center font-extrabold text-[15px] text-[#071E3D] bg-gray-50/50">{item.total_asesi}</td>
                     <td className="py-4 px-5 text-center">
-                        <span className="inline-flex items-center justify-center min-w-[32px] h-8 rounded-lg bg-green-100 text-green-700 font-extrabold text-[14px] border border-green-200">{item.kompeten}</span>
+                        <span className="inline-flex items-center justify-center min-w-[32px] px-2.5 h-8 rounded-lg bg-orange-100 text-[#CC6B27] font-extrabold text-[14px] border border-orange-200">{item.terjadwal}</span>
                     </td>
                     <td className="py-4 px-5 text-center">
-                        <span className="inline-flex items-center justify-center min-w-[32px] h-8 rounded-lg bg-red-100 text-red-700 font-extrabold text-[14px] border border-red-200">{item.belum_kompeten}</span>
+                        <span className="inline-flex items-center justify-center min-w-[32px] px-2.5 h-8 rounded-lg bg-green-100 text-green-700 font-extrabold text-[14px] border border-green-200">{item.kompeten}</span>
+                    </td>
+                    <td className="py-4 px-5 text-center">
+                        <span className="inline-flex items-center justify-center min-w-[32px] px-2.5 h-8 rounded-lg bg-red-100 text-red-700 font-extrabold text-[14px] border border-red-200">{item.belum_kompeten}</span>
                     </td>
                   </tr>
                 ))
               ) : (
                 <tr>
-                  <td colSpan="5" className="py-20 text-center">
+                  <td colSpan="6" className="py-20 text-center">
                     <div className="flex flex-col items-center justify-center">
                       <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mb-3">
                         <FileText size={32} className="text-[#071E3D]/30"/>
@@ -320,6 +346,7 @@ const LaporanSertifikasi = () => {
                 <tr className="bg-[#E2E8F0] text-[#071E3D]">
                   <td colSpan="2" className="py-4 px-5 text-right font-extrabold uppercase text-[12px] tracking-wider border-t-2 border-[#182D4A]/20">Total Keseluruhan :</td>
                   <td className="py-4 px-5 text-center font-black text-[16px] text-[#071E3D] border-t-2 border-[#182D4A]/20">{sumAsesi}</td>
+                  <td className="py-4 px-5 text-center font-black text-[16px] text-[#CC6B27] border-t-2 border-[#182D4A]/20">{sumTerjadwal}</td>
                   <td className="py-4 px-5 text-center font-black text-[16px] text-green-700 border-t-2 border-[#182D4A]/20">{sumK}</td>
                   <td className="py-4 px-5 text-center font-black text-[16px] text-red-700 border-t-2 border-[#182D4A]/20">{sumBK}</td>
                 </tr>
