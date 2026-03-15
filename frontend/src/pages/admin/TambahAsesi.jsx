@@ -247,27 +247,28 @@ const TambahAsesi = () => {
   const handleResetPassword = async (id_user, email) => {
     const confirm = await Swal.fire({
       title: 'Reset Password?',
-      text: `Sandi untuk akun ${email || 'ini'} akan direset ulang.`,
+      text: `Sandi untuk akun ${email || 'ini'} akan direset ulang dan dikirimkan ke email asesi.`,
       icon: 'warning',
       showCancelButton: true,
       confirmButtonColor: '#CC6B27',
       cancelButtonColor: '#182D4A',
-      confirmButtonText: 'Ya, Reset Sandi'
+      confirmButtonText: 'Ya, Reset & Kirim'
     });
 
     if (confirm.isConfirmed) {
       try {
         Swal.fire({ title: 'Memproses...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
         
-        // Memanggil rute POST /admin/asesi/:id/reset-password sesuai di admin.routes.js
+        // Memanggil rute POST /admin/asesi/:id/reset-password
         const response = await api.post(`/admin/asesi/${id_user}/reset-password`); 
         const resData = response.data !== undefined ? response.data : response;
         
-        const { username, password } = resData.data;
+        // Hanya mengambil username (NIK) sesuai respon backend terbaru
+        const { username } = resData.data;
 
         Swal.fire({
             title: 'Berhasil Reset!',
-            html: `Sandi berhasil diatur ulang.<br><br><b>Username:</b> ${username}<br><b>Password Baru:</b> ${password}<br><br><small style="color:red;">Mohon simpan atau berikan info ini ke asesi!</small>`,
+            html: `Sandi untuk NIK <b>${username}</b> berhasil diatur ulang.<br><br>Sandi yang baru telah otomatis dikirimkan ke email asesi dan tercatat dalam sistem notifikasi.`,
             icon: 'success'
         });
       } catch (error) {
