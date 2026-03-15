@@ -10,12 +10,17 @@ exports.createTuk = async (req, res) => {
   const t = await sequelize.transaction();
 
   try {
-
-    const role = await Role.findOne({
+    // 1. Cek atau Buat Role TUK agar tidak crash kalau role belum ada di DB
+    let role = await Role.findOne({
       where: { role_name: "TUK" },
       transaction: t
     });
 
+    if (!role) {
+      role = await Role.create({ role_name: "TUK" }, { transaction: t });
+    }
+
+    // 2. Buat Akun User
     const { user, rawPassword } = await createUser({
       username: req.body.kode_tuk,
       email: req.body.email,
@@ -23,84 +28,87 @@ exports.createTuk = async (req, res) => {
       id_role: role.id_role
     }, { transaction: t });
 
+    // 3. Simpan Data ke Tabel TUK (Semua field dimasukkan)
     const tuk = await Tuk.create({
       kode_tuk: req.body.kode_tuk,
       nama_tuk: req.body.nama_tuk,
       jenis_tuk: req.body.jenis_tuk,
+      institusi_induk: req.body.institusi_induk,
       email: req.body.email,
       telepon: req.body.telepon,
       alamat: req.body.alamat,
       provinsi: req.body.provinsi,
       kota: req.body.kota,
+      kecamatan: req.body.kecamatan,
+      kelurahan: req.body.kelurahan,
+      kode_pos: req.body.kode_pos,
+      no_lisensi: req.body.no_lisensi,
+      masa_berlaku_lisensi: req.body.masa_berlaku_lisensi || null,
       status: "nonaktif",
-      id_penanggung_jawab: user.id_user
+      id_penanggung_jawab: user.id_user // Tautkan akun
     }, { transaction: t });
 
-    await ProfileTuk.create({
+    // 4. Update/Insert Profil TUK (Pakai UPSERT agar tidak bentrok dengan auto-generate dari account.service)
+    await ProfileTuk.upsert({
       id_user: user.id_user,
       nama_lengkap: req.body.nama_tuk,
       alamat: req.body.alamat,
       provinsi: req.body.provinsi,
-      kota: req.body.kota
+      kota: req.body.kota,
+      kecamatan: req.body.kecamatan,
+      kelurahan: req.body.kelurahan,
+      kode_pos: req.body.kode_pos
     }, { transaction: t });
+
+    // 5. Buat Notifikasi 
+    await createNotifikasi({
+      channel: "email",
+      tujuan: req.body.email,
+      pesan: `Akun TUK berhasil dibuat.\nUsername: ${req.body.kode_tuk}\nPassword: ${rawPassword}`,
+      status_kirim: "terkirim",
+      ref_type: "akun",
+      ref_id: user.id_user
+    });
 
     await t.commit();
 
-    return response.success(res, "TUK berhasil dibuat", tuk);
+    return response.success(res, "TUK berhasil dibuat dan email terkirim.");
 
   } catch (err) {
-
     await t.rollback();
+    // Fitur Pelacak Error: Akan muncul tulisan MERAH di terminal Backend jika gagal
+    console.error("=============== ERROR CREATE TUK ===============");
+    console.error(err); 
+    console.error("================================================");
     return response.error(res, err.message);
-
   }
 };
 
 exports.importTukExcel = async (req, res) => {
-
   try {
-
-    if (!req.file) {
-      return response.error(res, "File tidak ditemukan", 400);
-    }
+    if (!req.file) return response.error(res, "File tidak ditemukan", 400);
 
     const workbook = XLSX.read(req.file.buffer, { type: "buffer" });
     const sheet = workbook.Sheets[workbook.SheetNames[0]];
     const rows = XLSX.utils.sheet_to_json(sheet);
 
-    if (!rows.length) {
-      return response.error(res, "File Excel kosong", 400);
-    }
+    if (!rows.length) return response.error(res, "File Excel kosong", 400);
 
     let success = 0;
     let failed = 0;
 
     for (const row of rows) {
-
       const t = await sequelize.transaction();
-
       try {
+        let role = await Role.findOne({ where: { role_name: "TUK" } });
+        if (!role) role = await Role.create({ role_name: "TUK" }, { transaction: t });
 
-        let role = await Role.findOne({
-          where: { role_name: "TUK" }
-        });
-
-        if (!role) {
-          role = await Role.create(
-            { role_name: "TUK" },
-            { transaction: t }
-          );
-        }
-
-        const { user, rawPassword } = await createUser(
-          {
-            username: row.kode_tuk,
-            email: row.email,
-            no_hp: row.telepon,
-            id_role: role.id_role
-          },
-          { transaction: t }
-        );
+        const { user, rawPassword } = await createUser({
+          username: row.kode_tuk,
+          email: row.email,
+          no_hp: row.telepon,
+          id_role: role.id_role
+        }, { transaction: t });
 
         await Tuk.create({
           kode_tuk: row.kode_tuk,
@@ -116,12 +124,12 @@ exports.importTukExcel = async (req, res) => {
           kelurahan: row.kelurahan,
           kode_pos: row.kode_pos,
           no_lisensi: row.no_lisensi,
-          masa_berlaku_lisensi: row.masa_berlaku_lisensi,
+          masa_berlaku_lisensi: row.masa_berlaku_lisensi || null,
           status: "nonaktif",
-          id_penanggung_jawab: user.id_user // <-- SUDAH DIPERBAIKI
+          id_penanggung_jawab: user.id_user
         }, { transaction: t });
 
-        await ProfileTuk.create({
+        await ProfileTuk.upsert({
           id_user: user.id_user,
           nama_lengkap: row.nama_tuk,
           alamat: row.alamat,
@@ -143,32 +151,21 @@ exports.importTukExcel = async (req, res) => {
 
         await t.commit();
         success++;
-
       } catch (err) {
-
         await t.rollback();
         failed++;
-        console.log("Import gagal:", err.message);
-
+        console.log(`Import gagal baris ${row.kode_tuk}:`, err.message);
       }
     }
 
-    return response.success(
-      res,
-      `Import selesai. Berhasil: ${success}, Gagal: ${failed}`
-    );
-
+    return response.success(res, `Import selesai. Berhasil: ${success}, Gagal: ${failed}`);
   } catch (err) {
-
     return response.error(res, err.message);
-
   }
 };
 
 exports.getAll = async (req, res) => {
-
   try {
-
     const page = parseInt(req.query.page);
     const limit = parseInt(req.query.limit);
     const search = req.query.search || "";
@@ -181,115 +178,84 @@ exports.getAll = async (req, res) => {
     } : {};
 
     if (page && limit) {
-
       const offset = (page - 1) * limit;
-
       const data = await Tuk.findAndCountAll({
         where: whereClause,
         limit,
         offset,
-        include: [
-          {
-            model: User,
-            as: "penanggungJawab",
-            attributes: ["id_user", "username", "email"]
-          }
-        ],
+        include: [{ model: User, as: "penanggungJawab", attributes: ["id_user", "username", "email"] }],
         order: [['id_tuk', 'DESC']]
       });
-
       return response.success(res, "List TUK Pagination", data);
     }
 
     const data = await Tuk.findAll({
       where: whereClause,
-      include: [
-        {
-          model: User,
-          as: "penanggungJawab",
-          attributes: ["id_user", "username", "email"]
-        }
-      ],
+      include: [{ model: User, as: "penanggungJawab", attributes: ["id_user", "username", "email"] }],
       order: [['nama_tuk', 'ASC']]
     });
-
     return response.success(res, "List Semua TUK", data);
-
   } catch (err) {
-
-    console.error("Error Get All TUK:", err);
     return response.error(res, err.message);
-
   }
 };
 
 exports.getById = async (req, res) => {
-
   try {
-
     const data = await Tuk.findByPk(req.params.id, {
-      include: [
-        {
-          model: User,
-          as: "penanggungJawab",
-          attributes: ["id_user", "username", "email"]
-        }
-      ]
+      include: [{ model: User, as: "penanggungJawab", attributes: ["id_user", "username", "email"] }]
     });
-
-    if (!data) {
-      return response.error(res, "TUK tidak ditemukan", 404);
-    }
-
+    if (!data) return response.error(res, "TUK tidak ditemukan", 404);
     return response.success(res, "Detail TUK", data);
-
   } catch (err) {
-
     return response.error(res, err.message);
   }
 };
 
 exports.update = async (req, res) => {
-
   try {
-
     const tuk = await Tuk.findByPk(req.params.id);
-
-    if (!tuk) {
-      return response.error(res, "TUK tidak ditemukan", 404);
-    }
+    if (!tuk) return response.error(res, "TUK tidak ditemukan", 404);
 
     await tuk.update(req.body);
+    
+    // Sinkronisasikan juga pembaruan ke ProfileTuk (Opsional, tapi direkomendasikan)
+    if (tuk.id_penanggung_jawab) {
+      await ProfileTuk.update({
+        nama_lengkap: req.body.nama_tuk,
+        alamat: req.body.alamat,
+        provinsi: req.body.provinsi,
+        kota: req.body.kota,
+        kecamatan: req.body.kecamatan,
+        kelurahan: req.body.kelurahan,
+        kode_pos: req.body.kode_pos
+      }, { where: { id_user: tuk.id_penanggung_jawab }});
+    }
 
     return response.success(res, "TUK berhasil diperbarui", tuk);
-
   } catch (err) {
-
     return response.error(res, err.message);
   }
 };
 
 exports.delete = async (req, res) => {
-
   const t = await sequelize.transaction();
-
   try {
-
     const tuk = await Tuk.findByPk(req.params.id, { transaction: t });
-
     if (!tuk) {
       await t.rollback();
       return response.error(res, "TUK tidak ditemukan", 404);
     }
+    
+    // Hapus juga akun usernya agar tidak jadi akun zombie di database
+    if (tuk.id_penanggung_jawab) {
+      await User.destroy({ where: { id_user: tuk.id_penanggung_jawab }, transaction: t });
+    }
 
     await tuk.destroy({ transaction: t });
-
     await t.commit();
-
-    return response.success(res, "TUK berhasil dihapus");
-
+    return response.success(res, "TUK dan Akun berhasil dihapus");
   } catch (err) {
-
     await t.rollback();
     return response.error(res, err.message);
   }
@@ -297,55 +263,32 @@ exports.delete = async (req, res) => {
 
 exports.attachSkema = async (req, res) => {
   try {
-
     const { id_tuk, id_skema } = req.body;
-
     const tuk = await Tuk.findByPk(id_tuk);
+    if (!tuk) return response.error(res, "TUK tidak ditemukan", 404);
 
-    if (!tuk)
-      return response.error(res, "TUK tidak ditemukan", 404);
-
-    const data = await TukSkema.create({
-      id_tuk,
-      id_skema
-    });
-
+    const data = await TukSkema.create({ id_tuk, id_skema });
     return response.success(res, "Skema berhasil dikaitkan ke TUK", data);
-
   } catch (err) {
-
     return response.error(res, err.message);
-
   }
 };
 
 exports.detachSkema = async (req, res) => {
   try {
-
     const { id_tuk, id_skema } = req.params;
-
-    const deleted = await TukSkema.destroy({
-      where: { id_tuk, id_skema }
-    });
-
-    if (!deleted)
-      return response.error(res, "Relasi tidak ditemukan", 404);
-
+    const deleted = await TukSkema.destroy({ where: { id_tuk, id_skema } });
+    if (!deleted) return response.error(res, "Relasi tidak ditemukan", 404);
     return response.success(res, "Skema dilepas dari TUK");
-
   } catch (err) {
-
     return response.error(res, err.message);
-
   }
 };
 
 exports.resetPassword = async (req, res) => {
   try {
     const user = await User.findByPk(req.params.id);
-
-    if (!user)
-      return response.error(res, "User tidak ditemukan", 404);
+    if (!user) return response.error(res, "User tidak ditemukan", 404);
 
     const rawPassword = await resetUserPassword(user);
 
@@ -359,7 +302,7 @@ exports.resetPassword = async (req, res) => {
       await createNotifikasi({
         channel: "email",
         tujuan: user.email || user.username,
-        pesan: `Password untuk NIK ${user.username} berhasil direset dan dikirim ke email.`,
+        pesan: `Password untuk TUK ${user.username} berhasil direset dan dikirim ke email.`,
         status_kirim: "terkirim",
         ref_type: "akun",
         ref_id: user.id_user
@@ -368,10 +311,7 @@ exports.resetPassword = async (req, res) => {
       console.error("Gagal membuat notif reset password:", notifErr);
     }
 
-    return response.success(res, "Password berhasil direset dan dikirim ke email", {
-      username: user.username
-    });
-
+    return response.success(res, "Password berhasil direset dan dikirim ke email", { username: user.username });
   } catch (err) {
     return response.error(res, err.message);
   }
