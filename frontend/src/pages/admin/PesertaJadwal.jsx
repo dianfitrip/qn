@@ -34,7 +34,6 @@ const PesertaJadwal = () => {
       // Ini akan jadi "sumber kebenaran" (source of truth) untuk data Skema semua peserta
       if (data && data.length > 0 && data[0].jadwal) {
         setJadwalInfo(data[0].jadwal);
-        console.log("Data Jadwal & Skema (Global):", data[0].jadwal);
       }
     } catch (error) {
       console.error("Gagal mengambil data peserta:", error);
@@ -55,14 +54,13 @@ const PesertaJadwal = () => {
   };
 
   // Helper untuk membaca skema dengan logika fallback ke jadwalInfo
+  // DIPERBARUI: Menggunakan "judul_skema" sesuai database backend
   const getSkemaName = (jadwalObj) => {
-    // Jika jadwal di baris ini kosong, gunakan jadwalInfo global (karena jadwalnya pasti sama)
     const targetJadwal = jadwalObj || jadwalInfo;
     if (!targetJadwal) return '-';
     
-    // Cek berbagai kemungkinan format penamaan objek Skema dari backend
-    return targetJadwal.skema?.nama_skema || 
-           targetJadwal.Skema?.nama_skema || 
+    return targetJadwal.skema?.judul_skema || 
+           targetJadwal.Skema?.judul_skema || 
            '-';
   };
 
