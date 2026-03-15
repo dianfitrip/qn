@@ -187,7 +187,6 @@ router.put("/ia03-pertanyaan/:id", ia03Controller.update);
 router.get("/ia03-pertanyaan/unit/:id_unit", ia03Controller.getByUnit);
 router.delete("/ia03-pertanyaan/:id", ia03Controller.delete);
 
-router.post("/send-email/:id", accountController.sendAccountEmailManual);
 router.post("/tuk/:id/generate-account", tukAdmin.generateAccount);
 
 module.exports = router;
