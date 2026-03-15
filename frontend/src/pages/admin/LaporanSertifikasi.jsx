@@ -5,7 +5,7 @@ import {
   Search, Loader2, Download, Filter, 
   Calendar, FileText, BarChart2, CheckCircle, XCircle, Users
 } from 'lucide-react';
-import * as XLSX from 'xlsx'; // Pastikan Anda sudah install: npm install xlsx
+import * as XLSX from 'xlsx'; 
 
 const LaporanSertifikasi = () => {
   const [dataList, setDataList] = useState([]);
@@ -13,11 +13,11 @@ const LaporanSertifikasi = () => {
   const [loading, setLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
 
-  // State untuk Filter Waktu
-  const currentYear = new Date().getFullYear();
-  const [filterYear, setFilterYear] = useState(currentYear.toString()); 
+  // Default Filter: Kosong = Tampilkan Semua
+  const [filterYear, setFilterYear] = useState(""); 
   const [filterMonth, setFilterMonth] = useState(""); 
 
+  const currentYear = new Date().getFullYear();
   const months = [
     { value: "01", label: "Januari" }, { value: "02", label: "Februari" },
     { value: "03", label: "Maret" }, { value: "04", label: "April" },
@@ -26,10 +26,9 @@ const LaporanSertifikasi = () => {
     { value: "09", label: "September" }, { value: "10", label: "Oktober" },
     { value: "11", label: "November" }, { value: "12", label: "Desember" }
   ];
-
   const years = Array.from({ length: 5 }, (_, i) => (currentYear - i).toString());
 
-  // --- FETCH REAL DATA (TANPA MENGUBAH BACKEND) ---
+  // --- FETCH REAL DATA ---
   useEffect(() => {
     fetchRealData();
   }, []);
@@ -37,34 +36,36 @@ const LaporanSertifikasi = () => {
   const fetchRealData = async () => {
     setLoading(true);
     try {
-      // Kita memanggil API Jadwal yang sudah ada (biasanya berisi relasi skema, asesi, dll)
-      // Jika Anda punya API /peserta-jadwal/global, itu lebih bagus. Di sini kita contohkan memanggil jadwal.
-      const response = await api.get('/admin/jadwal'); 
-      const jadwals = response.data?.data || response.data?.rows || [];
+      // TRIK: Tarik data Jadwal DAN Peserta secara bersamaan
+      const [resJadwal, resPeserta] = await Promise.all([
+        api.get('/admin/jadwal'),
+        api.get('/admin/peserta-jadwal/global') // Pastikan endpoint ini aktif
+      ]);
 
-      // 1. Lakukan Agregasi / Perhitungan Manual di Frontend
+      const jadwals = resJadwal.data?.data || resJadwal.data?.rows || [];
+      const pesertas = resPeserta.data?.data || resPeserta.data?.rows || [];
+
+      // 1. Lakukan Pencocokan Data secara Manual
       const aggregatedData = jadwals.map(jadwal => {
-        // Asumsi data peserta ada di dalam jadwal.pesertaJadwals atau jadwal.asesi (sesuaikan nama field backend Anda)
-        const pesertaList = jadwal.pesertaJadwals || jadwal.peserta || [];
+        // Cari semua asesi yang masuk ke dalam jadwal ini
+        const pesertaJadwalIni = pesertas.filter(p => p.id_jadwal === jadwal.id_jadwal);
         
-        // Hitung K (Kompeten) dan BK (Belum Kompeten)
-        let totalAsesi = pesertaList.length;
         let countK = 0;
         let countBK = 0;
 
-        pesertaList.forEach(p => {
-          // Sesuaikan pengecekan status kelulusan dengan field dari database Anda
-          const status = (p.status_kelulusan || p.rekomendasi || "").toLowerCase();
-          if (status === 'k' || status === 'kompeten') countK++;
-          if (status === 'bk' || status === 'belum kompeten') countBK++;
+        // Hitung status kelulusan tiap asesi
+        pesertaJadwalIni.forEach(p => {
+          const status = (p.status_kelulusan || "").toLowerCase();
+          if (status === 'kompeten' || status === 'k') countK++;
+          if (status === 'belum_kompeten' || status === 'belum kompeten' || status === 'bk') countBK++;
         });
 
         return {
           id: jadwal.id_jadwal,
           nama_skema: jadwal.skema?.nama_skema || jadwal.nama_kegiatan || 'Tanpa Skema',
-          tanggal: jadwal.tanggal_mulai || jadwal.tanggal,
+          tanggal: jadwal.tanggal_waktu || jadwal.tanggal_mulai || jadwal.tanggal || '',
           tuk: jadwal.tuk?.nama_tuk || 'TUK Belum Ditentukan',
-          total_asesi: totalAsesi,
+          total_asesi: pesertaJadwalIni.length,
           kompeten: countK,
           belum_kompeten: countBK,
         };
@@ -97,13 +98,18 @@ const LaporanSertifikasi = () => {
     }
 
     if (year) {
-      result = result.filter(item => item.tanggal && item.tanggal.startsWith(year));
+      result = result.filter(item => {
+        if (!item.tanggal) return false;
+        const dateObj = new Date(item.tanggal);
+        return String(dateObj.getFullYear()) === year;
+      });
     }
 
     if (month) {
       result = result.filter(item => {
         if (!item.tanggal) return false;
-        const itemMonth = item.tanggal.split('-')[1]; // asumsi format YYYY-MM-DD
+        const dateObj = new Date(item.tanggal);
+        const itemMonth = String(dateObj.getMonth() + 1).padStart(2, '0');
         return itemMonth === month;
       });
     }
@@ -132,7 +138,6 @@ const LaporanSertifikasi = () => {
       'Belum Kompeten (BK)': item.belum_kompeten
     }));
 
-    // Menambahkan Baris Total di Excel
     excelData.push({
       'No': '',
       'Nama Skema': 'TOTAL KESELURUHAN',
@@ -147,7 +152,6 @@ const LaporanSertifikasi = () => {
     const workbook = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(workbook, worksheet, "Laporan Sertifikasi");
     
-    // Auto-width columns
     const wscols = [{wch:5}, {wch:40}, {wch:20}, {wch:35}, {wch:15}, {wch:15}, {wch:20}];
     worksheet['!cols'] = wscols;
 
@@ -304,7 +308,7 @@ const LaporanSertifikasi = () => {
                         <FileText size={32} className="text-[#071E3D]/30"/>
                       </div>
                       <p className="text-[#182D4A] font-bold text-[15px] mb-1">Data Tidak Ditemukan</p>
-                      <p className="text-[#182D4A]/60 text-[13px]">Tidak ada data laporan yang cocok dengan filter pencarian saat ini.</p>
+                      <p className="text-[#182D4A]/60 text-[13px]">Tidak ada jadwal atau data laporan yang cocok.</p>
                     </div>
                   </td>
                 </tr>
