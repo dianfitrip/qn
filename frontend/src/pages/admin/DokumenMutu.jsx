@@ -88,14 +88,22 @@ const DokumenMutu = () => {
   const buildFileUrl = (path) => {
     if (!path) return null;
     if (path.startsWith('blob:') || path.startsWith('http')) return path;
-    // Mencegah duplikasi folder uploads jika backend mengirimkan awalan 'uploads/'
     const cleanPath = path.replace(/^(\/?uploads\/|\/)/, '');
     return `http://localhost:3000/uploads/${cleanPath}`;
   };
 
-  const isPdfFile = (filename) => filename && /\.(pdf)$/i.test(filename);
-  const isImageFile = (filename) => filename && /\.(jpg|jpeg|png|gif|webp)$/i.test(filename);
-  const isPreviewable = (filename) => isPdfFile(filename) || isImageFile(filename);
+  // PERBAIKAN: Baca ektensi dari file fisik (jika ada) saat upload baru (blob)
+  const isPdfFile = (filename, fieldName) => {
+    const checkName = files[fieldName] ? files[fieldName].name : filename;
+    return checkName && /\.(pdf)$/i.test(checkName);
+  };
+  
+  const isImageFile = (filename, fieldName) => {
+    const checkName = files[fieldName] ? files[fieldName].name : filename;
+    return checkName && /\.(jpg|jpeg|png|gif|webp)$/i.test(checkName);
+  };
+
+  const isPreviewable = (filename, fieldName) => isPdfFile(filename, fieldName) || isImageFile(filename, fieldName);
 
   // --- VALIDASI MANUAL ---
   const validateInput = (name, value) => {
@@ -452,6 +460,7 @@ const DokumenMutu = () => {
                 {modalType === 'detail' && <><Eye size={20} className="text-[#CC6B27]"/> Detail Dokumen</>}
               </h3>
               <button 
+                type="button"
                 className="text-[#182D4A] hover:text-[#CC6B27] hover:bg-[#CC6B27]/10 p-1.5 rounded-lg transition-colors" 
                 onClick={() => setShowModal(false)}
               >
@@ -548,7 +557,7 @@ const DokumenMutu = () => {
                         <div className="border border-[#071E3D]/20 rounded-lg flex flex-col overflow-hidden min-h-[300px]">
                             <div className="bg-gray-100 px-3 py-2 text-[11px] font-bold text-[#182D4A] flex justify-between items-center border-b border-[#071E3D]/20">
                                 <span>Preview Dokumen Utama</span>
-                                {previewUrlUtama && isPreviewable(previewUrlUtama) && (
+                                {previewUrlUtama && isPreviewable(previewUrlUtama, 'file_dokumen') && (
                                 <button type="button" onClick={() => setShowFullPreviewUtama(!showFullPreviewUtama)} className="text-[#CC6B27] hover:underline">
                                     {showFullPreviewUtama ? 'Perkecil' : 'Tampilkan Lebih Banyak'}
                                 </button>
@@ -557,8 +566,8 @@ const DokumenMutu = () => {
                             
                             <div className={`relative flex-1 transition-all duration-300 ${showFullPreviewUtama ? 'h-[500px]' : 'h-full bg-white'}`}>
                                 {previewUrlUtama ? (
-                                    isPreviewable(previewUrlUtama) ? (
-                                        isImageFile(previewUrlUtama) ? (
+                                    isPreviewable(previewUrlUtama, 'file_dokumen') ? (
+                                        isImageFile(previewUrlUtama, 'file_dokumen') ? (
                                             <div className="w-full h-full overflow-auto absolute inset-0 flex justify-center items-start bg-gray-50 p-2">
                                                 <img src={buildFileUrl(previewUrlUtama)} alt="Preview" className="max-w-full object-contain" />
                                             </div>
@@ -595,6 +604,7 @@ const DokumenMutu = () => {
                                 <input 
                                   type="file" name="file_pendukung" onChange={(e) => handleFileChange(e, 'file_pendukung')} 
                                   className="block w-full text-[12px] text-[#182D4A] file:mr-3 file:py-2 file:px-3 file:rounded file:border-0 file:text-[11px] file:font-bold file:bg-[#182D4A]/10 file:text-[#182D4A] hover:file:bg-[#182D4A] hover:file:text-white cursor-pointer transition-colors border border-[#071E3D]/20 rounded-lg bg-white p-1"
+                                  accept=".pdf,.doc,.docx,.xls,.xlsx,.jpg,.jpeg,.png"
                                 />
                             )}
                             {selectedItem?.file_pendukung && !files.file_pendukung && (
@@ -608,7 +618,7 @@ const DokumenMutu = () => {
                         <div className="border border-[#071E3D]/20 rounded-lg flex flex-col overflow-hidden min-h-[300px]">
                             <div className="bg-gray-100 px-3 py-2 text-[11px] font-bold text-[#182D4A] flex justify-between items-center border-b border-[#071E3D]/20">
                                 <span>Preview Dokumen Pendukung</span>
-                                {previewUrlPendukung && isPreviewable(previewUrlPendukung) && (
+                                {previewUrlPendukung && isPreviewable(previewUrlPendukung, 'file_pendukung') && (
                                 <button type="button" onClick={() => setShowFullPreviewPendukung(!showFullPreviewPendukung)} className="text-[#CC6B27] hover:underline">
                                     {showFullPreviewPendukung ? 'Perkecil' : 'Tampilkan Lebih Banyak'}
                                 </button>
@@ -617,8 +627,8 @@ const DokumenMutu = () => {
                             
                             <div className={`relative flex-1 transition-all duration-300 ${showFullPreviewPendukung ? 'h-[500px]' : 'h-full bg-white'}`}>
                                 {previewUrlPendukung ? (
-                                    isPreviewable(previewUrlPendukung) ? (
-                                        isImageFile(previewUrlPendukung) ? (
+                                    isPreviewable(previewUrlPendukung, 'file_pendukung') ? (
+                                        isImageFile(previewUrlPendukung, 'file_pendukung') ? (
                                             <div className="w-full h-full overflow-auto absolute inset-0 flex justify-center items-start bg-gray-50 p-2">
                                                 <img src={buildFileUrl(previewUrlPendukung)} alt="Preview" className="max-w-full object-contain" />
                                             </div>
