@@ -152,8 +152,8 @@ const Sidebar = () => {
         {/* REPORTING */}
         <SectionLabel>Reporting</SectionLabel>
         
-        {/* MENU LAPORAN SERTIFIKASI (TIDAK LAGI DROPDOWN) */}
-        <button className={getNavItemClass(isActive('/admin/laporan/umum'))} onClick={() => handleNav('/admin/laporan/umum')}>
+        {/* MENU LAPORAN SERTIFIKASI (PATH DIUBAH DI SINI) */}
+        <button className={getNavItemClass(isActive('/admin/laporan-sertifikasi'))} onClick={() => handleNav('/admin/laporan-sertifikasi')}>
           <div className="flex items-center flex-1">
             <FaChartBar className="text-lg mr-3" />
             <span className="text-left">Laporan Sertifikasi</span>
