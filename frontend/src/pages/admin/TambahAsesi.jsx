@@ -243,11 +243,11 @@ const TambahAsesi = () => {
     }
   };
 
-  // PERBAIKAN: Ganti Send Email jadi Reset Password
+  // PERBAIKAN: Ganti Send Email jadi Reset Password sesuai Backend
   const handleResetPassword = async (id_user, email) => {
     const confirm = await Swal.fire({
       title: 'Reset Password?',
-      text: `Sandi untuk akun ${email} akan direset ulang.`,
+      text: `Sandi untuk akun ${email || 'ini'} akan direset ulang.`,
       icon: 'warning',
       showCancelButton: true,
       confirmButtonColor: '#CC6B27',
@@ -259,8 +259,8 @@ const TambahAsesi = () => {
       try {
         Swal.fire({ title: 'Memproses...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
         
-        // Sesuaikan dengan route API Anda di backend
-        const response = await api.put(`/admin/asesi/reset-password/${id_user}`); 
+        // Memanggil rute POST /admin/asesi/:id/reset-password sesuai di admin.routes.js
+        const response = await api.post(`/admin/asesi/${id_user}/reset-password`); 
         const resData = response.data !== undefined ? response.data : response;
         
         const { username, password } = resData.data;
