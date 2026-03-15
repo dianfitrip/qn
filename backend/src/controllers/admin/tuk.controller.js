@@ -41,7 +41,7 @@ exports.createTuk = async (req, res) => {
       );
     }
 
-    const { user, rawPassword } = await createUser(
+    const { user } = await createUser(
       {
         username: kode_tuk,
         email,
@@ -87,23 +87,12 @@ exports.createTuk = async (req, res) => {
       { transaction: t }
     );
 
-    await createNotifikasi({
-      channel: "email",
-      tujuan: email,
-      pesan: `Akun TUK berhasil dibuat.
-Username: ${kode_tuk}
-Password: ${rawPassword}`,
-      status_kirim: "terkirim",
-      ref_type: "akun",
-      ref_id: user.id_user
-    });
-
     await t.commit();
 
-    return response.success(res, "Akun TUK berhasil dibuat", {
-      username: kode_tuk,
-      password: rawPassword
-    });
+    return response.success(
+      res,
+      "TUK berhasil dibuat. Email akun belum dikirim."
+    );
 
   } catch (err) {
 
