@@ -30,10 +30,9 @@ const TempatUji = () => {
   const [kelurahanList, setKelurahanList] = useState([]);
 
   // --- FORM DATA ---
-  // Disamakan persis dengan ekstrak req.body di tuk.controller.js
   const initialFormState = {
     email: '',
-    telepon: '', // Diubah dari no_hp agar match dengan backend
+    telepon: '',
     kode_tuk: '',
     nama_tuk: '',
     jenis_tuk: 'sewaktu',
@@ -54,7 +53,7 @@ const TempatUji = () => {
   // --- LOAD DATA ---
   useEffect(() => {
     fetchData();
-    fetchProvinsi();
+    fetchProvinsiInit();
   }, [pagination.page, searchTerm]);
 
   // --- API FUNCTIONS ---
@@ -83,37 +82,71 @@ const TempatUji = () => {
     }
   };
 
-  const fetchProvinsi = async () => {
+  const fetchProvinsiInit = async () => {
     try {
       const res = await getProvinsi();
-      setProvinsiList(res);
+      setProvinsiList(Array.isArray(res) ? res : (res?.data || []));
     } catch (err) { console.error("Gagal load provinsi", err); }
   };
 
-  // --- HANDLER WILAYAH ---
+  // --- HANDLER WILAYAH (Diperbaiki jadi robust) ---
   const handleProvinsiChange = async (e) => {
     const id = e.target.value;
-    const name = e.target.options[e.target.selectedIndex].text;
-    setFormData({ ...formData, provinsi: name, kota: '', kecamatan: '', kelurahan: '' });
+    const name = id ? provinsiList.find(p => String(p.id) === String(id))?.name : '';
+    
+    setFormData(prev => ({ ...prev, provinsi: name || '', kota: '', kecamatan: '', kelurahan: '' }));
     setKotaList([]); setKecamatanList([]); setKelurahanList([]);
-    if (id) setKotaList(await getKota(id));
+    
+    if (id) {
+      try {
+        const res = await getKota(id);
+        setKotaList(Array.isArray(res) ? res : (res?.data || []));
+      } catch(err) { console.error(err) }
+    }
   };
 
   const handleKotaChange = async (e) => {
     const id = e.target.value;
-    const name = e.target.options[e.target.selectedIndex].text;
-    setFormData({ ...formData, kota: name, kecamatan: '', kelurahan: '' });
+    const name = id ? kotaList.find(p => String(p.id) === String(id))?.name : '';
+    
+    setFormData(prev => ({ ...prev, kota: name || '', kecamatan: '', kelurahan: '' }));
     setKecamatanList([]); setKelurahanList([]);
-    if (id) setKecamatanList(await getKecamatan(id));
+    
+    if (id) {
+      try {
+        const res = await getKecamatan(id);
+        setKecamatanList(Array.isArray(res) ? res : (res?.data || []));
+      } catch(err) { console.error(err) }
+    }
   };
 
   const handleKecamatanChange = async (e) => {
     const id = e.target.value;
-    const name = e.target.options[e.target.selectedIndex].text;
-    setFormData({ ...formData, kecamatan: name, kelurahan: '' });
+    const name = id ? kecamatanList.find(p => String(p.id) === String(id))?.name : '';
+    
+    setFormData(prev => ({ ...prev, kecamatan: name || '', kelurahan: '' }));
     setKelurahanList([]);
-    if (id) setKelurahanList(await getKelurahan(id));
+    
+    if (id) {
+      try {
+        const res = await getKelurahan(id);
+        setKelurahanList(Array.isArray(res) ? res : (res?.data || []));
+      } catch(err) { console.error(err) }
+    }
   };
+
+  const handleKelurahanChange = (e) => {
+    const id = e.target.value;
+    const name = id ? kelurahanList.find(k => String(k.id) === String(id))?.name : '';
+    setFormData(prev => ({ ...prev, kelurahan: name || '' }));
+  };
+
+  // Derived ID dari nama (Untuk controlled select value)
+  const selectedProvinsiId = provinsiList.find(p => p.name === formData.provinsi)?.id || "";
+  const selectedKotaId = kotaList.find(k => k.name === formData.kota)?.id || "";
+  const selectedKecamatanId = kecamatanList.find(k => k.name === formData.kecamatan)?.id || "";
+  const selectedKelurahanId = kelurahanList.find(k => k.name === formData.kelurahan)?.id || "";
+
 
   // --- FORM HANDLERS ---
   const handleInputChange = (e) => {
@@ -156,27 +189,61 @@ const TempatUji = () => {
         masa_berlaku_lisensi: toDateInput(item.masa_berlaku_lisensi),
         status: item.status || 'aktif'
       });
-      return true;
+      return item; // Return the exact item object for subsequent chained fetching
     } catch (error) {
       Swal.fire({title: 'Error', text: 'Gagal mengambil detail TUK', icon: 'error', confirmButtonColor: '#CC6B27'});
-      return false;
+      return null;
+    }
+  };
+
+  // Otomatis Fetch Wilayah beruntun jika dalam Mode Edit 
+  const fetchDependentRegions = async (item) => {
+    if (!item.provinsi) return;
+    const provMatch = provinsiList.find(p => p.name === item.provinsi);
+    if (!provMatch) return;
+
+    try {
+        const kotaRes = await getKota(provMatch.id);
+        const kList = Array.isArray(kotaRes) ? kotaRes : (kotaRes?.data || []);
+        setKotaList(kList);
+
+        if (item.kota) {
+            const kotaMatch = kList.find(k => k.name === item.kota);
+            if (kotaMatch) {
+                const kecRes = await getKecamatan(kotaMatch.id);
+                const kecList = Array.isArray(kecRes) ? kecRes : (kecRes?.data || []);
+                setKecamatanList(kecList);
+
+                if (item.kecamatan) {
+                    const kecMatch = kecList.find(k => k.name === item.kecamatan);
+                    if (kecMatch) {
+                        const kelRes = await getKelurahan(kecMatch.id);
+                        const kelList = Array.isArray(kelRes) ? kelRes : (kelRes?.data || []);
+                        setKelurahanList(kelList);
+                    }
+                }
+            }
+        }
+    } catch (e) {
+        console.error("Gagal meload child wilayah", e);
     }
   };
 
   const openEditModal = async (id) => {
     resetForm();
-    const success = await fetchDetail(id);
-    if (success) {
-      setCurrentId(id); // id_tuk
+    const item = await fetchDetail(id);
+    if (item) {
+      setCurrentId(id);
       setIsEditMode(true);
       setShowModal(true);
+      await fetchDependentRegions(item); // Load lists agar select dropdown tidak disabled
     }
   };
 
   const openDetailModal = async (id) => {
     resetForm();
-    const success = await fetchDetail(id);
-    if (success) {
+    const item = await fetchDetail(id);
+    if (item) {
       setIsDetailMode(true);
       setShowModal(true);
     }
@@ -194,11 +261,9 @@ const TempatUji = () => {
 
     try {
       if (isEditMode) {
-        // Update data via PUT /admin/tuk/:id
         await api.put(`/admin/tuk/${currentId}`, payload);
         Swal.fire({title: 'Sukses', text: 'Data TUK berhasil diperbarui', icon: 'success', confirmButtonColor: '#CC6B27'});
       } else {
-        // Create TUK & Akun (Rute diperbaiki dari /admin/tuk-akun ke /admin/tuk)
         await api.post('/admin/tuk', payload);
         Swal.fire({title: 'Sukses', text: 'TUK baru berhasil dibuat.', icon: 'success', confirmButtonColor: '#CC6B27'});
       }
@@ -430,29 +495,29 @@ const TempatUji = () => {
                         <>
                             <div className="flex flex-col gap-1.5">
                                 <label className="text-[13px] font-bold text-[#071E3D]">Provinsi</label>
-                                <select onChange={handleProvinsiChange} className="w-full p-2.5 border border-[#071E3D]/20 rounded-lg text-[#071E3D] bg-[#FAFAFA] focus:bg-white focus:outline-none focus:border-[#CC6B27] focus:ring-2 focus:ring-[#CC6B27]/10 transition-all font-medium text-[13px] appearance-none">
-                                    <option value="">{formData.provinsi || "Pilih Provinsi"}</option>
+                                <select value={selectedProvinsiId} onChange={handleProvinsiChange} className="w-full p-2.5 border border-[#071E3D]/20 rounded-lg text-[#071E3D] bg-[#FAFAFA] focus:bg-white focus:outline-none focus:border-[#CC6B27] focus:ring-2 focus:ring-[#CC6B27]/10 transition-all font-medium text-[13px] appearance-none">
+                                    <option value="">Pilih Provinsi</option>
                                     {provinsiList.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
                                 </select>
                             </div>
                             <div className="flex flex-col gap-1.5">
                                 <label className="text-[13px] font-bold text-[#071E3D]">Kota/Kab</label>
-                                <select onChange={handleKotaChange} disabled={!kotaList.length} className="w-full p-2.5 border border-[#071E3D]/20 rounded-lg text-[#071E3D] bg-[#FAFAFA] focus:bg-white focus:outline-none focus:border-[#CC6B27] focus:ring-2 focus:ring-[#CC6B27]/10 transition-all font-medium text-[13px] disabled:opacity-70 disabled:bg-gray-100 appearance-none">
-                                    <option value="">{formData.kota || "Pilih Kota"}</option>
+                                <select value={selectedKotaId} onChange={handleKotaChange} disabled={kotaList.length === 0} className="w-full p-2.5 border border-[#071E3D]/20 rounded-lg text-[#071E3D] bg-[#FAFAFA] focus:bg-white focus:outline-none focus:border-[#CC6B27] focus:ring-2 focus:ring-[#CC6B27]/10 transition-all font-medium text-[13px] disabled:opacity-70 disabled:bg-gray-100 appearance-none">
+                                    <option value="">Pilih Kota/Kab</option>
                                     {kotaList.map(k => <option key={k.id} value={k.id}>{k.name}</option>)}
                                 </select>
                             </div>
                             <div className="flex flex-col gap-1.5">
                                 <label className="text-[13px] font-bold text-[#071E3D]">Kecamatan</label>
-                                <select onChange={handleKecamatanChange} disabled={!kecamatanList.length} className="w-full p-2.5 border border-[#071E3D]/20 rounded-lg text-[#071E3D] bg-[#FAFAFA] focus:bg-white focus:outline-none focus:border-[#CC6B27] focus:ring-2 focus:ring-[#CC6B27]/10 transition-all font-medium text-[13px] disabled:opacity-70 disabled:bg-gray-100 appearance-none">
-                                    <option value="">{formData.kecamatan || "Pilih Kecamatan"}</option>
+                                <select value={selectedKecamatanId} onChange={handleKecamatanChange} disabled={kecamatanList.length === 0} className="w-full p-2.5 border border-[#071E3D]/20 rounded-lg text-[#071E3D] bg-[#FAFAFA] focus:bg-white focus:outline-none focus:border-[#CC6B27] focus:ring-2 focus:ring-[#CC6B27]/10 transition-all font-medium text-[13px] disabled:opacity-70 disabled:bg-gray-100 appearance-none">
+                                    <option value="">Pilih Kecamatan</option>
                                     {kecamatanList.map(k => <option key={k.id} value={k.id}>{k.name}</option>)}
                                 </select>
                             </div>
                             <div className="flex flex-col gap-1.5">
                                 <label className="text-[13px] font-bold text-[#071E3D]">Kelurahan</label>
-                                <select onChange={(e) => setFormData({...formData, kelurahan: e.target.options[e.target.selectedIndex].text})} disabled={!kelurahanList.length} className="w-full p-2.5 border border-[#071E3D]/20 rounded-lg text-[#071E3D] bg-[#FAFAFA] focus:bg-white focus:outline-none focus:border-[#CC6B27] focus:ring-2 focus:ring-[#CC6B27]/10 transition-all font-medium text-[13px] disabled:opacity-70 disabled:bg-gray-100 appearance-none">
-                                    <option value="">{formData.kelurahan || "Pilih Kelurahan"}</option>
+                                <select value={selectedKelurahanId} onChange={handleKelurahanChange} disabled={kelurahanList.length === 0} className="w-full p-2.5 border border-[#071E3D]/20 rounded-lg text-[#071E3D] bg-[#FAFAFA] focus:bg-white focus:outline-none focus:border-[#CC6B27] focus:ring-2 focus:ring-[#CC6B27]/10 transition-all font-medium text-[13px] disabled:opacity-70 disabled:bg-gray-100 appearance-none">
+                                    <option value="">Pilih Kelurahan</option>
                                     {kelurahanList.map(k => <option key={k.id} value={k.id}>{k.name}</option>)}
                                 </select>
                             </div>
