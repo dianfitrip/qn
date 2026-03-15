@@ -169,7 +169,7 @@ const TambahAsesi = () => {
       if (!value || value.trim() === '') errorMsg = 'Nama Lengkap wajib diisi.';
     } else if (name === 'tahun_lulus' && value) {
       const currentYear = new Date().getFullYear();
-      if (parseInt(value) > currentYear) errorMsg = 'Tahun lulus tidak boleh melebihi tahun saat ini.';
+      if (parseInt(value) > currentYear) errorMsg = 'tahun lulusnya dari masa depan nih? Maksimal tahun ini ya.';
     } else if (name === 'tanggal_lahir' && value) {
       const selectedDate = new Date(value);
       const today = new Date();
@@ -547,7 +547,7 @@ const TambahAsesi = () => {
                       <textarea name="alamat" rows="2" value={formData.alamat} onChange={handleInputChange} disabled={isDetailMode} placeholder="Nama jalan, perumahan, gang..." className={`${inputClass('alamat')} resize-none`}></textarea>
                     </div>
                     
-                    {/* Logika Perbaikan Tampilan Dropdown Wilayah */}
+                    {/* Logika Perbaikan Tampilan Dropdown Wilayah Mode Detail */}
                     {isDetailMode ? (
                       <>
                         <div>
