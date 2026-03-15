@@ -30,31 +30,23 @@ const TempatUji = () => {
   const [kelurahanList, setKelurahanList] = useState([]);
 
   // --- FORM DATA ---
-  // Disesuaikan dengan tuk.model.js dan controller
+  // Disamakan persis dengan ekstrak req.body di tuk.controller.js
   const initialFormState = {
-    // Data Akun (User) & TUK
     email: '',
-    no_hp: '', // di backend diproses menjadi telepon TUK
-
-    // Data Profile TUK
+    telepon: '', // Diubah dari no_hp agar match dengan backend
     kode_tuk: '',
     nama_tuk: '',
-    jenis_tuk: 'sewaktu', // "mandiri", "sewaktu", "tempat_kerja"
-    penanggung_jawab: '',
+    jenis_tuk: 'sewaktu',
     institusi_induk: '',
-    
-    // Alamat
     alamat: '',
     provinsi: '',
     kota: '',
     kecamatan: '',
     kelurahan: '',
     kode_pos: '',
-    
-    // Legalitas
     no_lisensi: '',
     masa_berlaku_lisensi: '',
-    status: 'aktif' // enum "aktif", "nonaktif"
+    status: 'aktif'
   };
 
   const [formData, setFormData] = useState(initialFormState);
@@ -148,12 +140,11 @@ const TempatUji = () => {
       const toDateInput = (dateStr) => dateStr ? new Date(dateStr).toISOString().split('T')[0] : '';
 
       setFormData({
-        email: item.User?.email || item.email || '',
-        no_hp: item.User?.no_hp || item.telepon || '',
+        email: item.email || '',
+        telepon: item.telepon || '',
         kode_tuk: item.kode_tuk || '',
         nama_tuk: item.nama_tuk || '',
         jenis_tuk: item.jenis_tuk || 'sewaktu',
-        penanggung_jawab: item.penanggung_jawab || '',
         institusi_induk: item.institusi_induk || '',
         alamat: item.alamat || '',
         provinsi: item.provinsi || '',
@@ -207,8 +198,8 @@ const TempatUji = () => {
         await api.put(`/admin/tuk/${currentId}`, payload);
         Swal.fire({title: 'Sukses', text: 'Data TUK berhasil diperbarui', icon: 'success', confirmButtonColor: '#CC6B27'});
       } else {
-        // Create akun user & TUK
-        await api.post('/admin/tuk-akun', payload);
+        // Create TUK & Akun (Rute diperbaiki dari /admin/tuk-akun ke /admin/tuk)
+        await api.post('/admin/tuk', payload);
         Swal.fire({title: 'Sukses', text: 'TUK baru berhasil dibuat.', icon: 'success', confirmButtonColor: '#CC6B27'});
       }
       setShowModal(false);
@@ -375,7 +366,7 @@ const TempatUji = () => {
               <button onClick={() => setShowModal(false)} className="text-[#182D4A] hover:text-[#CC6B27] hover:bg-[#CC6B27]/10 p-1.5 rounded-lg transition-colors"><X size={20}/></button>
             </div>
             
-            <div className="overflow-y-auto px-6 py-5">
+            <div className="overflow-y-auto px-6 py-5 custom-scrollbar">
                 <form id="tukForm" onSubmit={handleSubmit} className="space-y-6">
                 
                 {/* AKUN */}
@@ -390,7 +381,7 @@ const TempatUji = () => {
                         </div>
                         <div className="flex flex-col gap-1.5">
                             <label className="text-[13px] font-bold text-[#071E3D]">No Handphone / Telp</label>
-                            <input type="text" name="no_hp" value={formData.no_hp} onChange={handleInputChange} disabled={isDetailMode} required={!isEditMode} className="w-full p-2.5 border border-[#071E3D]/20 rounded-lg text-[#071E3D] bg-[#FAFAFA] focus:bg-white focus:outline-none focus:border-[#CC6B27] focus:ring-2 focus:ring-[#CC6B27]/10 transition-all font-medium text-[13px] disabled:opacity-70 disabled:bg-gray-100" placeholder="08..."/>
+                            <input type="text" name="telepon" value={formData.telepon} onChange={handleInputChange} disabled={isDetailMode} required={!isEditMode} className="w-full p-2.5 border border-[#071E3D]/20 rounded-lg text-[#071E3D] bg-[#FAFAFA] focus:bg-white focus:outline-none focus:border-[#CC6B27] focus:ring-2 focus:ring-[#CC6B27]/10 transition-all font-medium text-[13px] disabled:opacity-70 disabled:bg-gray-100" placeholder="08..."/>
                         </div>
                     </div>
                 </div>
@@ -417,11 +408,7 @@ const TempatUji = () => {
                                 <option value="mandiri">TUK Mandiri</option>
                             </select>
                         </div>
-                        <div className="flex flex-col gap-1.5">
-                            <label className="text-[13px] font-bold text-[#071E3D]">Penanggung Jawab</label>
-                            <input type="text" name="penanggung_jawab" value={formData.penanggung_jawab} onChange={handleInputChange} disabled={isDetailMode} className="w-full p-2.5 border border-[#071E3D]/20 rounded-lg text-[#071E3D] bg-[#FAFAFA] focus:bg-white focus:outline-none focus:border-[#CC6B27] focus:ring-2 focus:ring-[#CC6B27]/10 transition-all font-medium text-[13px] disabled:opacity-70 disabled:bg-gray-100" placeholder="Nama penanggung jawab..."/>
-                        </div>
-                        <div className="flex flex-col gap-1.5">
+                        <div className="flex flex-col gap-1.5 md:col-span-2">
                             <label className="text-[13px] font-bold text-[#071E3D]">Institusi Induk</label>
                             <input type="text" name="institusi_induk" value={formData.institusi_induk} onChange={handleInputChange} disabled={isDetailMode} className="w-full p-2.5 border border-[#071E3D]/20 rounded-lg text-[#071E3D] bg-[#FAFAFA] focus:bg-white focus:outline-none focus:border-[#CC6B27] focus:ring-2 focus:ring-[#CC6B27]/10 transition-all font-medium text-[13px] disabled:opacity-70 disabled:bg-gray-100" placeholder="Nama instansi/perusahaan..."/>
                         </div>
