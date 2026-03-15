@@ -51,8 +51,21 @@ const Sidebar = () => {
     sessionStorage.setItem("sidebarScrollPosition", e.target.scrollTop);
   };
 
+  // FUNGSI TOGGLE MENU YANG DIPERBARUI (ACCORDION STYLE)
   const toggleMenu = (key) => {
-    setOpenMenus((prev) => ({ ...prev, [key]: !prev[key] }));
+    setOpenMenus((prev) => {
+      // Buat semua menu menjadi tertutup terlebih dahulu
+      const newState = {
+        laporan: false,
+        standar: false,
+        event: false,
+        asesi: false,
+        asesor: false
+      };
+      // Toggle hanya pada menu yang sedang diklik
+      newState[key] = !prev[key];
+      return newState;
+    });
   };
 
   const isActive = (path) => location.pathname === path || location.pathname.startsWith(`${path}/`);
@@ -69,7 +82,6 @@ const Sidebar = () => {
   };
 
   // --- HELPER UNTUK KELAS TAILWIND ---
-  // Menggunakan #071E3D (Background Utama), #182D4A (Secondary), #CC6B27 (Highlight), #FAFAFA (Text)
   
   const getNavItemClass = (active) =>
     `w-full flex items-center justify-between px-3 py-2.5 mb-1 rounded-lg text-sm transition-all duration-200 outline-none ${
@@ -264,8 +276,6 @@ const Sidebar = () => {
             <button className={getSubItemClass(isActive('/admin/asesi/kompeten'))} onClick={() => handleNav('/admin/asesi/kompeten')}>
               <span className={`w-1.5 h-1.5 rounded-full mr-3 ${isActive('/admin/asesi/kompeten') ? 'bg-[#CC6B27]' : 'bg-[#FAFAFA]/40'}`}></span>Kompeten
             </button>
-            
-            {/* INI MENU YANG DIUBAH */}
             <button className={getSubItemClass(isActive('/admin/asesi/belum-kompeten'))} onClick={() => handleNav('/admin/asesi/belum-kompeten')}>
               <span className={`w-1.5 h-1.5 rounded-full mr-3 ${isActive('/admin/asesi/belum-kompeten') ? 'bg-[#CC6B27]' : 'bg-[#FAFAFA]/40'}`}></span>Belum Kompeten
             </button>

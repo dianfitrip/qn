@@ -5,7 +5,7 @@ import { getProvinsi, getKota, getKecamatan, getKelurahan } from "../../services
 import { 
   Search, Plus, Eye, Edit2, Trash2, X, Save, 
   User as UserIcon, Loader2, Upload, FileSpreadsheet,
-  Briefcase, GraduationCap, MapPin, Mail, Users
+  Briefcase, GraduationCap, MapPin, Mail, Users, Key
 } from 'lucide-react';
 
 const Asesor = () => {
@@ -235,6 +235,39 @@ const Asesor = () => {
     }
   };
 
+  // --- FUNGSI RESET PASSWORD ASESOR ---
+  const handleResetPassword = async (id_user, email) => {
+    const confirm = await Swal.fire({
+      title: 'Reset Password?',
+      text: `Sandi untuk akun ${email || 'ini'} akan direset ulang dan dikirimkan ke email asesor.`,
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonColor: '#CC6B27',
+      cancelButtonColor: '#182D4A',
+      confirmButtonText: 'Ya, Reset & Kirim'
+    });
+
+    if (confirm.isConfirmed) {
+      try {
+        Swal.fire({ title: 'Memproses...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+        
+        // Memanggil rute POST /admin/asesor/:id/reset-password
+        const response = await api.post(`/admin/asesor/${id_user}/reset-password`); 
+        const resData = response.data !== undefined ? response.data : response;
+        
+        const { username } = resData.data;
+
+        Swal.fire({
+            title: 'Berhasil Reset!',
+            html: `Sandi untuk Username / Email <b>${username}</b> berhasil diatur ulang.<br><br>Sandi yang baru telah otomatis dikirimkan ke email asesor dan tercatat dalam sistem notifikasi.`,
+            icon: 'success'
+        });
+      } catch (error) {
+        Swal.fire('Gagal', error.response?.data?.message || 'Gagal mereset password', 'error');
+      }
+    }
+  };
+
   const resetForm = () => {
     setFormData(initialFormState);
     setSelectedProvinsiId(''); setSelectedKotaId(''); setSelectedKecamatanId('');
@@ -356,7 +389,7 @@ const Asesor = () => {
                 <th className="py-3.5 px-4 bg-[#071E3D] text-[#FAFAFA] font-semibold text-[12px] uppercase tracking-wider border-b-4 border-[#CC6B27]">Bidang Keahlian</th>
                 <th className="py-3.5 px-4 bg-[#071E3D] text-[#FAFAFA] font-semibold text-[12px] uppercase tracking-wider border-b-4 border-[#CC6B27]">No. MET</th>
                 <th className="py-3.5 px-4 bg-[#071E3D] text-[#FAFAFA] font-semibold text-[12px] uppercase tracking-wider border-b-4 border-[#CC6B27] text-center">Status</th>
-                <th className="py-3.5 px-4 bg-[#071E3D] text-[#FAFAFA] font-semibold text-[12px] uppercase tracking-wider border-b-4 border-[#CC6B27] text-center w-40">Aksi</th>
+                <th className="py-3.5 px-4 bg-[#071E3D] text-[#FAFAFA] font-semibold text-[12px] uppercase tracking-wider border-b-4 border-[#CC6B27] text-center w-60">Aksi</th>
               </tr>
             </thead>
             <tbody>
@@ -394,8 +427,17 @@ const Asesor = () => {
                       </span>
                     </td>
                     <td className="py-3 px-4 text-center">
-                      <div className="flex justify-center gap-1.5">
+                      <div className="flex justify-center gap-1.5 flex-wrap">
                         
+                        {/* TOMBOL RESET SANDI */}
+                        <button 
+                          onClick={() => handleResetPassword(item.id_user || item.id, item.user?.email || item.email)}
+                          className="px-2 py-1.5 rounded flex items-center justify-center gap-1.5 text-[11px] font-bold transition-all border bg-[#182D4A]/5 text-[#182D4A] border-[#182D4A]/20 hover:bg-[#182D4A]/10"
+                          title="Reset Password Asesor"
+                        >
+                          <Key size={14} /> Reset Sandi
+                        </button>
+
                         {/* TOMBOL SEND EMAIL */}
                         <button 
                           onClick={() => handleSendAccount(item.id_user)} 

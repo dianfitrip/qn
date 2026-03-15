@@ -4,6 +4,7 @@ const response = require("../../utils/response.util");
 const { createUser  } = require("../../services/account.service");
 const { resetUserPassword } = require("../../services/account.service");
 const sequelize = require("../../config/database");
+const { sendAccountEmail } = require("../../services/email.service");
 
 exports.createAsesor = async (req, res) => {
 
