@@ -25,13 +25,17 @@ const PesertaJadwal = () => {
   const fetchPeserta = async () => {
     try {
       setLoading(true);
-      // Endpoint yang sudah benar
       const res = await api.get(`/admin/jadwal/${id_jadwal}/peserta`);
-      setPesertaList(res.data.data || []);
+      
+      const data = res.data.data || [];
+      setPesertaList(data);
+      
+      // CEK CONSOLE: Buka Inspect Element -> Console di browser untuk melihat struktur asli data dari backend
+      console.log("Data Peserta dari Backend:", data);
       
       // Ambil info jadwal dari data pertama jika ada
-      if (res.data.data && res.data.data.length > 0) {
-        setJadwalInfo(res.data.data[0].jadwal);
+      if (data && data.length > 0) {
+        setJadwalInfo(data[0].jadwal);
       }
     } catch (error) {
       console.error("Gagal mengambil data peserta:", error);
@@ -45,14 +49,35 @@ const PesertaJadwal = () => {
     setShowDetailModal(true);
   };
 
-  // Filter pencarian yang sudah disesuaikan agar bisa mencari nama & NIK
-  const filteredData = pesertaList.filter(item => 
-    item.user?.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    item.nomor_peserta?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    item.user?.nama_lengkap?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    item.user?.ProfileAsesi?.nik?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    item.jadwal?.skema?.nama_skema?.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  // Helper untuk membaca profile (mengakomodasi berbagai format Sequelize)
+  const getProfile = (userObj) => {
+    if (!userObj) return null;
+    return userObj.ProfileAsesi || userObj.profileAsesi || userObj.profile_asesi;
+  };
+
+  // Helper untuk membaca skema
+  const getSkemaName = (jadwalObj) => {
+    if (!jadwalObj) return '-';
+    return jadwalObj.skema?.nama_skema || jadwalObj.Skema?.nama_skema || '-';
+  };
+
+  // Filter pencarian yang sudah diperbaiki
+  const filteredData = pesertaList.filter(item => {
+    const profile = getProfile(item.user);
+    const nama = profile?.nama_lengkap || item.user?.username || item.user?.nama_lengkap || '';
+    const nik = profile?.nik || '';
+    const email = item.user?.email || '';
+    const skema = getSkemaName(item.jadwal);
+    const nomor = item.nomor_peserta || '';
+
+    const term = searchTerm.toLowerCase();
+
+    return email.toLowerCase().includes(term) ||
+           nomor.toLowerCase().includes(term) ||
+           nama.toLowerCase().includes(term) ||
+           nik.toLowerCase().includes(term) ||
+           skema.toLowerCase().includes(term);
+  });
 
   // Helper untuk format tanggal
   const formatDate = (dateString) => {
@@ -121,46 +146,53 @@ const PesertaJadwal = () => {
               ) : filteredData.length === 0 ? (
                 <tr>
                   <td colSpan="7" className="p-8 text-center text-gray-500 text-sm">
-                    Belum ada peserta yang terdaftar pada jadwal ini.
+                    Belum ada peserta yang cocok atau terdaftar pada jadwal ini.
                   </td>
                 </tr>
               ) : (
-                filteredData.map((row, index) => (
-                  <tr key={row.id_peserta} className="border-b border-gray-50 hover:bg-gray-50 transition-colors text-[13px]">
-                    <td className="p-4 text-center text-gray-600">{index + 1}</td>
-                    
-                    {/* Kolom Nama & NIK */}
-                    <td className="p-4">
-                      <div className="font-medium text-[#182D4A]">{row.user?.nama_lengkap || '-'}</div>
-                      <div className="text-gray-500 text-xs">NIK: {row.user?.ProfileAsesi?.nik || '-'}</div>
-                    </td>
-                    
-                    {/* Kolom Skema */}
-                    <td className="p-4 text-gray-600">{row.jadwal?.skema?.nama_skema || '-'}</td>
-                    
-                    <td className="p-4 font-medium text-[#182D4A]">{row.nomor_peserta || '-'}</td>
-                    <td className="p-4">
-                      <span className={`px-3 py-1 rounded-full text-xs font-semibold capitalize
-                        ${row.status_asesmen === 'kompeten' ? 'bg-green-100 text-green-700' : 
-                          row.status_asesmen === 'belum_kompeten' ? 'bg-red-100 text-red-700' : 
-                          'bg-blue-100 text-blue-700'}`}>
-                        {row.status_asesmen.replace('_', ' ')}
-                      </span>
-                    </td>
-                    <td className="p-4 text-center font-bold text-[#182D4A]">
-                      {row.nilai_akhir ? row.nilai_akhir : '-'}
-                    </td>
-                    <td className="p-4 text-center">
-                      <button 
-                        onClick={() => handleViewDetail(row)}
-                        className="p-1.5 text-[#071E3D] bg-slate-100 hover:bg-[#CC6B27] hover:text-white rounded transition-colors"
-                        title="Lihat Detail"
-                      >
-                        <Eye size={18} />
-                      </button>
-                    </td>
-                  </tr>
-                ))
+                filteredData.map((row, index) => {
+                  const profile = getProfile(row.user);
+                  const namaLengkap = profile?.nama_lengkap || row.user?.username || row.user?.nama_lengkap || '-';
+                  const nik = profile?.nik || '-';
+                  const namaSkema = getSkemaName(row.jadwal);
+
+                  return (
+                    <tr key={row.id_peserta} className="border-b border-gray-50 hover:bg-gray-50 transition-colors text-[13px]">
+                      <td className="p-4 text-center text-gray-600">{index + 1}</td>
+                      
+                      {/* Kolom Nama & NIK */}
+                      <td className="p-4">
+                        <div className="font-medium text-[#182D4A]">{namaLengkap}</div>
+                        <div className="text-gray-500 text-xs">NIK: {nik}</div>
+                      </td>
+                      
+                      {/* Kolom Skema */}
+                      <td className="p-4 text-gray-600">{namaSkema}</td>
+                      
+                      <td className="p-4 font-medium text-[#182D4A]">{row.nomor_peserta || '-'}</td>
+                      <td className="p-4">
+                        <span className={`px-3 py-1 rounded-full text-xs font-semibold capitalize
+                          ${row.status_asesmen === 'kompeten' ? 'bg-green-100 text-green-700' : 
+                            row.status_asesmen === 'belum_kompeten' ? 'bg-red-100 text-red-700' : 
+                            'bg-blue-100 text-blue-700'}`}>
+                          {row.status_asesmen?.replace('_', ' ')}
+                        </span>
+                      </td>
+                      <td className="p-4 text-center font-bold text-[#182D4A]">
+                        {row.nilai_akhir ? row.nilai_akhir : '-'}
+                      </td>
+                      <td className="p-4 text-center">
+                        <button 
+                          onClick={() => handleViewDetail(row)}
+                          className="p-1.5 text-[#071E3D] bg-slate-100 hover:bg-[#CC6B27] hover:text-white rounded transition-colors"
+                          title="Lihat Detail"
+                        >
+                          <Eye size={18} />
+                        </button>
+                      </td>
+                    </tr>
+                  )
+                })
               )}
             </tbody>
           </table>
@@ -194,18 +226,22 @@ const PesertaJadwal = () => {
                 <div className="grid grid-cols-2 gap-4">
                   <div className="bg-gray-50 p-3 rounded-lg border border-gray-100">
                     <p className="text-[11px] text-gray-500 uppercase font-bold tracking-wider mb-1">Nama Asesi</p>
-                    <p className="font-bold text-[#182D4A] text-[14px]">{selectedPeserta.user?.nama_lengkap || '-'}</p>
+                    <p className="font-bold text-[#182D4A] text-[14px]">
+                      {getProfile(selectedPeserta.user)?.nama_lengkap || selectedPeserta.user?.username || '-'}
+                    </p>
                   </div>
                   <div className="bg-gray-50 p-3 rounded-lg border border-gray-100">
                     <p className="text-[11px] text-gray-500 uppercase font-bold tracking-wider mb-1">NIK Asesi</p>
-                    <p className="font-bold text-[#182D4A] text-[14px]">{selectedPeserta.user?.ProfileAsesi?.nik || '-'}</p>
+                    <p className="font-bold text-[#182D4A] text-[14px]">
+                      {getProfile(selectedPeserta.user)?.nik || '-'}
+                    </p>
                   </div>
                 </div>
 
                 <div className="grid grid-cols-2 gap-4">
                   <div className="bg-gray-50 p-3 rounded-lg border border-gray-100">
                     <p className="text-[11px] text-gray-500 uppercase font-bold tracking-wider mb-1">Skema</p>
-                    <p className="font-bold text-[#182D4A] text-[14px]">{selectedPeserta.jadwal?.skema?.nama_skema || '-'}</p>
+                    <p className="font-bold text-[#182D4A] text-[14px]">{getSkemaName(selectedPeserta.jadwal)}</p>
                   </div>
                   <div className="bg-gray-50 p-3 rounded-lg border border-gray-100">
                     <p className="text-[11px] text-gray-500 uppercase font-bold tracking-wider mb-1">Nomor Peserta</p>
@@ -221,7 +257,7 @@ const PesertaJadwal = () => {
                         ${selectedPeserta.status_asesmen === 'kompeten' ? 'bg-green-100 text-green-700 border border-green-200' : 
                           selectedPeserta.status_asesmen === 'belum_kompeten' ? 'bg-red-100 text-red-700 border border-red-200' : 
                           'bg-blue-100 text-blue-700 border border-blue-200'}`}>
-                        {selectedPeserta.status_asesmen.replace('_', ' ')}
+                        {selectedPeserta.status_asesmen?.replace('_', ' ')}
                     </span>
                   </div>
                   <div>
