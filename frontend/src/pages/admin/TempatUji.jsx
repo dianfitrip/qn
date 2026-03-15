@@ -248,27 +248,42 @@ const TempatUji = () => {
   };
 
   // --- ACTIONS ---
-  const handleSendEmail = async (id_user) => {
-    if (!id_user) {
-      return Swal.fire({title: 'Peringatan', text: 'ID User (Penanggung Jawab) tidak ditemukan untuk TUK ini.', icon: 'warning', confirmButtonColor: '#CC6B27'});
-    }
+
+  // FUNGSI BARU UNTUK HANDLE GENERATE ACCOUNT + SEND EMAIL
+  const handleSendEmail = async (tukId, userId) => {
+    if (!tukId) return;
+    
     const confirm = await Swal.fire({
-      title: 'Kirim Email Akun?',
-      text: "Kirim email berisi informasi login ke TUK ini?",
+      title: userId ? 'Kirim Ulang Email?' : 'Buat & Kirim Akun?',
+      text: userId 
+        ? "Kirim ulang email berisi informasi login ke TUK ini?" 
+        : "Akun penanggung jawab untuk TUK ini belum ada. Sistem akan membuatkan akun dan mengirimkannya via email. Lanjutkan?",
       icon: 'question',
       showCancelButton: true,
       confirmButtonColor: '#CC6B27',
       cancelButtonColor: '#182D4A',
-      confirmButtonText: 'Ya, Kirim',
+      confirmButtonText: 'Ya, Lanjutkan',
       cancelButtonText: 'Batal'
     });
 
     if (confirm.isConfirmed) {
       try {
-        await api.post(`/admin/send-email/${id_user}`);
-        Swal.fire({title: 'Terkirim', text: 'Email berhasil dikirim.', icon: 'success', confirmButtonColor: '#CC6B27'});
+        let targetUserId = userId;
+        
+        // 1. Jika belum punya akun (userId kosong), minta backend buatkan akun dulu
+        if (!targetUserId) {
+          const resGenerate = await api.post(`/admin/tuk/${tukId}/generate-account`);
+          // Ambil id_user yang baru dibuat dari response backend
+          targetUserId = resGenerate.data.data.id_user; 
+        }
+
+        // 2. Tembak API Send Email bawaan account.controller.js menggunakan ID User
+        await api.post(`/admin/send-email/${targetUserId}`);
+        
+        Swal.fire({title: 'Sukses', text: 'Akun berhasil diproses & email dikirim.', icon: 'success', confirmButtonColor: '#CC6B27'});
+        fetchData(); // Refresh tabel agar icon/data terupdate
       } catch (error) {
-        Swal.fire({title: 'Gagal', text: error.response?.data?.message || 'Gagal mengirim email', icon: 'error', confirmButtonColor: '#CC6B27'});
+        Swal.fire({title: 'Gagal', text: error.response?.data?.message || 'Gagal memproses akun/email', icon: 'error', confirmButtonColor: '#CC6B27'});
       }
     }
   };
@@ -451,7 +466,9 @@ const TempatUji = () => {
                     </td>
                     <td className="py-4 px-4">
                       <div className="flex justify-center gap-1">
-                        <button onClick={() => handleSendEmail(item.penanggungJawab?.id_user)} className="p-1.5 rounded-lg text-[#182D4A] hover:text-[#071E3D] hover:bg-[#071E3D]/10 transition-colors" title="Kirim Email Akun"><Mail size={18}/></button>
+                        {/* UPDATE TOMBOL EMAIL */}
+                        <button onClick={() => handleSendEmail(item.id_tuk, item.penanggungJawab?.id_user)} className="p-1.5 rounded-lg text-[#182D4A] hover:text-[#071E3D] hover:bg-[#071E3D]/10 transition-colors" title={item.penanggungJawab ? "Kirim Ulang Email" : "Buat Akun & Kirim Email"}><Mail size={18}/></button>
+                        
                         <button onClick={() => handleResetPassword(item.penanggungJawab?.id_user)} className="p-1.5 rounded-lg text-[#182D4A] hover:text-[#071E3D] hover:bg-[#071E3D]/10 transition-colors" title="Reset Password"><Key size={18}/></button>
                         <button onClick={() => openDetailModal(item.id_tuk)} className="p-1.5 rounded-lg text-[#182D4A] hover:text-[#CC6B27] hover:bg-[#CC6B27]/10 transition-colors" title="Detail"><Eye size={18}/></button>
                         <button onClick={() => openEditModal(item.id_tuk)} className="p-1.5 rounded-lg text-[#182D4A] hover:text-[#071E3D] hover:bg-[#071E3D]/10 transition-colors" title="Edit"><Edit2 size={18}/></button>

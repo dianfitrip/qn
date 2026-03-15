@@ -2,7 +2,8 @@ const XLSX = require("xlsx");
 const { User, Role, Tuk, ProfileTuk, TukSkema } = require("../../models");
 const { createNotifikasi } = require("../../services/notifikasi.service");
 const response = require("../../utils/response.util");
-const { createUser } = require("../../services/account.service");
+const { createUser, resetUserPassword } = require("../../services/account.service");
+const { sendAccountEmail } = require("../../services/email.service");
 const sequelize = require("../../config/database");
 const { Op } = require("sequelize");
 
@@ -10,7 +11,6 @@ exports.createTuk = async (req, res) => {
   const t = await sequelize.transaction();
 
   try {
-    // 1. Cek atau Buat Role TUK agar tidak crash kalau role belum ada di DB
     let role = await Role.findOne({
       where: { role_name: "TUK" },
       transaction: t
@@ -20,7 +20,6 @@ exports.createTuk = async (req, res) => {
       role = await Role.create({ role_name: "TUK" }, { transaction: t });
     }
 
-    // 2. Buat Akun User
     const { user, rawPassword } = await createUser({
       username: req.body.kode_tuk,
       email: req.body.email,
@@ -28,7 +27,6 @@ exports.createTuk = async (req, res) => {
       id_role: role.id_role
     }, { transaction: t });
 
-    // 3. Simpan Data ke Tabel TUK (Semua field dimasukkan)
     const tuk = await Tuk.create({
       kode_tuk: req.body.kode_tuk,
       nama_tuk: req.body.nama_tuk,
@@ -45,10 +43,9 @@ exports.createTuk = async (req, res) => {
       no_lisensi: req.body.no_lisensi,
       masa_berlaku_lisensi: req.body.masa_berlaku_lisensi || null,
       status: "nonaktif",
-      id_penanggung_jawab: user.id_user // Tautkan akun
+      id_penanggung_jawab: user.id_user 
     }, { transaction: t });
 
-    // 4. Update/Insert Profil TUK (Pakai UPSERT agar tidak bentrok dengan auto-generate dari account.service)
     await ProfileTuk.upsert({
       id_user: user.id_user,
       nama_lengkap: req.body.nama_tuk,
@@ -60,7 +57,6 @@ exports.createTuk = async (req, res) => {
       kode_pos: req.body.kode_pos
     }, { transaction: t });
 
-    // 5. Buat Notifikasi 
     await createNotifikasi({
       channel: "email",
       tujuan: req.body.email,
@@ -76,7 +72,6 @@ exports.createTuk = async (req, res) => {
 
   } catch (err) {
     await t.rollback();
-    // Fitur Pelacak Error: Akan muncul tulisan MERAH di terminal Backend jika gagal
     console.error("=============== ERROR CREATE TUK ===============");
     console.error(err); 
     console.error("================================================");
@@ -219,7 +214,6 @@ exports.update = async (req, res) => {
 
     await tuk.update(req.body);
     
-    // Sinkronisasikan juga pembaruan ke ProfileTuk (Opsional, tapi direkomendasikan)
     if (tuk.id_penanggung_jawab) {
       await ProfileTuk.update({
         nama_lengkap: req.body.nama_tuk,
@@ -247,7 +241,6 @@ exports.delete = async (req, res) => {
       return response.error(res, "TUK tidak ditemukan", 404);
     }
     
-    // Hapus juga akun usernya agar tidak jadi akun zombie di database
     if (tuk.id_penanggung_jawab) {
       await User.destroy({ where: { id_user: tuk.id_penanggung_jawab }, transaction: t });
     }
@@ -313,6 +306,67 @@ exports.resetPassword = async (req, res) => {
 
     return response.success(res, "Password berhasil direset dan dikirim ke email", { username: user.username });
   } catch (err) {
+    return response.error(res, err.message);
+  }
+};
+
+// ==============================================
+// FITUR BARU: HANYA GENERATE AKUN TUK
+// ==============================================
+exports.generateAccount = async (req, res) => {
+  const t = await sequelize.transaction();
+  try {
+    const tuk = await Tuk.findByPk(req.params.id, {
+      include: [{ model: User, as: "penanggungJawab" }]
+    });
+
+    if (!tuk) {
+      await t.rollback();
+      return response.error(res, "TUK tidak ditemukan", 404);
+    }
+
+    // Jika akun sudah ada, kembalikan ID usernya saja
+    if (tuk.penanggungJawab) {
+      await t.rollback();
+      return response.success(res, "Akun sudah ada", { id_user: tuk.penanggungJawab.id_user });
+    }
+
+    // Buat role jika belum ada
+    let role = await Role.findOne({ where: { role_name: "TUK" }, transaction: t });
+    if (!role) role = await Role.create({ role_name: "TUK" }, { transaction: t });
+
+    // Buat user baru
+    const newUserInfo = await createUser({
+      username: tuk.kode_tuk,
+      email: tuk.email,
+      no_hp: tuk.telepon,
+      id_role: role.id_role
+    }, { transaction: t });
+
+    const user = newUserInfo.user;
+
+    // Tautkan id user baru ke tabel TUK
+    await tuk.update({ id_penanggung_jawab: user.id_user }, { transaction: t });
+
+    // Buat Profil TUK
+    await ProfileTuk.upsert({
+      id_user: user.id_user,
+      nama_lengkap: tuk.nama_tuk,
+      alamat: tuk.alamat,
+      provinsi: tuk.provinsi,
+      kota: tuk.kota,
+      kecamatan: tuk.kecamatan,
+      kelurahan: tuk.kelurahan,
+      kode_pos: tuk.kode_pos
+    }, { transaction: t });
+
+    await t.commit();
+    
+    // Kembalikan id_user yang baru dibuat ke frontend
+    return response.success(res, "Akun berhasil digenerate", { id_user: user.id_user });
+
+  } catch (err) {
+    await t.rollback();
     return response.error(res, err.message);
   }
 };
