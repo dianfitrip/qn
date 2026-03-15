@@ -63,6 +63,7 @@ ProfileAsesor.belongsTo(User, { foreignKey: "id_user" });
 ProfileAdmin.belongsTo(User, { foreignKey: "id_user" });
 ProfileTuk.belongsTo(User, { foreignKey: "id_user" });
 
+// KEMBALI KE VERSI LAMA YANG BENAR (ref_id)
 User.hasMany(Notifikasi, { foreignKey: "ref_id", constraints: false });
 Notifikasi.belongsTo(User, { foreignKey: "ref_id", constraints: false });
 
@@ -73,18 +74,15 @@ Skema.hasMany(BiayaUji, { foreignKey: "id_skema" });
 BiayaUji.belongsTo(Skema, { foreignKey: "id_skema" });
 
 Skema.belongsToMany(Persyaratan, { through: SkemaPersyaratan, foreignKey: "id_skema"});
-
 Persyaratan.belongsToMany(Skema, { through: SkemaPersyaratan, foreignKey: "id_persyaratan"});
 
 Skema.belongsToMany(PersyaratanTuk, { through: SkemaPersyaratanTuk, foreignKey: "id_skema"});
-
 PersyaratanTuk.belongsToMany(Skema, { through: SkemaPersyaratanTuk, foreignKey: "id_persyaratan_tuk"});
 
 Skema.hasMany(KelompokPekerjaan, { foreignKey: "id_skema" });
 KelompokPekerjaan.belongsTo(Skema, { foreignKey: "id_skema" });
 
 Skema.belongsToMany(Tuk, { through: TukSkema, foreignKey: "id_skema"});
-
 Tuk.belongsToMany(Skema, { through: TukSkema, foreignKey: "id_tuk"});
 
 Skema.hasMany(Jadwal, { foreignKey: "id_skema" });
@@ -95,8 +93,6 @@ Jadwal.belongsTo(Tuk, { foreignKey: "id_tuk", as: "tuk" });
 
 User.hasMany(Jadwal, { foreignKey: "created_by" });
 Jadwal.belongsTo(User, { foreignKey: "created_by", as: "creator" });
-
-
 
 Jadwal.hasMany(JadwalAsesor, { foreignKey: "id_jadwal" });
 JadwalAsesor.belongsTo(Jadwal, { foreignKey: "id_jadwal" });
@@ -119,6 +115,7 @@ Apl01Asesmen.belongsTo(User, { foreignKey: "id_user" });
 Apl01Asesmen.belongsTo(Skema, { foreignKey: "id_skema" });
 Apl01Asesmen.belongsTo(Jadwal, { foreignKey: "id_jadwal" });
 
+User.hasMany(Apl01Asesmen, { foreignKey: "id_user" });
 Apl01Asesmen.hasMany(Apl02AsesmenMandiri, { foreignKey: "id_apl01" });
 Apl02AsesmenMandiri.belongsTo(Apl01Asesmen, { foreignKey: "id_apl01" });
 
@@ -139,7 +136,6 @@ Skema.hasMany(BandingAsesmen, { foreignKey: "id_skema" });
 BandingAsesmen.belongsTo(Skema, { foreignKey: "id_skema" });
 
 Skema.belongsToMany(Skkni, { through: SkemaSkkni, foreignKey: "id_skema"});
-
 Skkni.belongsToMany(Skema, { through: SkemaSkkni, foreignKey: "id_skkni"});
 
 User.hasMany(Surveillance, { foreignKey: "id_user" });
@@ -149,12 +145,11 @@ Skema.hasMany(Surveillance, { foreignKey: "id_skema" });
 Surveillance.belongsTo(Skema, { foreignKey: "id_skema" });
 
 Apl01Asesmen.belongsToMany(Persyaratan, {through: Apl01Persyaratan, foreignKey: "id_apl01"});
-
 Persyaratan.belongsToMany(Apl01Asesmen, {through: Apl01Persyaratan, foreignKey: "id_persyaratan"});
 
 Apl01Asesmen.belongsToMany(UnitKompetensi, {through: Apl01Unit,foreignKey: "id_apl01"});
-
 UnitKompetensi.belongsToMany(Apl01Asesmen, {through: Apl01Unit, foreignKey: "id_unit"});
+
 UnitKompetensi.hasMany(IA01Observasi, { foreignKey: "id_unit"});
 UnitKuk.hasMany(IA01Observasi, { foreignKey: "id_kuk"});
 UnitKompetensi.hasMany(Apl02AsesmenMandiri, { foreignKey: "id_unit"});
@@ -209,7 +204,6 @@ PesertaJadwal.hasMany(FrAk01, { foreignKey: "id_peserta_jadwal", as: "frAk01" })
 
 FrAk01.belongsTo(User, { foreignKey: "id_asesor", as: "asesor" });
 User.hasMany(FrAk01, { foreignKey: "id_asesor" });
-
 FrAk01.belongsTo(ProfileAsesor, { foreignKey: "id_asesor", as: "profileAsesor" });
 
 FrAk02.belongsTo(PesertaJadwal, { foreignKey: "id_peserta", as: "peserta" });
@@ -226,22 +220,22 @@ User.hasMany(FrAk02, { foreignKey: "id_user_asesor", as: "frAk02" });
 
 FrAk02.belongsTo(ProfileAsesor, { foreignKey: "id_user_asesor", as: "profileAsesor" });
 
-FrAk05.belongsTo(PesertaJadwal, { foreignKey: "id_peserta", as: "pesertaJadwal" }); 
+FrAk05.belongsTo(PesertaJadwal, { foreignKey: "id_peserta", as: "pesertaJadwal" });
 PesertaJadwal.hasMany(FrAk05, { foreignKey: "id_peserta", as: "frAk05" });
 
-FrAk05.belongsTo(Jadwal, { foreignKey: "id_jadwal", as: "jadwal" }); 
+FrAk05.belongsTo(Jadwal, { foreignKey: "id_jadwal", as: "jadwal" });
 Jadwal.hasMany(FrAk05, { foreignKey: "id_jadwal", as: "frAk05" });
 
-FrAk05.belongsTo(Skema, { foreignKey: "id_skema", as: "skema" }); 
+FrAk05.belongsTo(Skema, { foreignKey: "id_skema", as: "skema" });
 Skema.hasMany(FrAk05, { foreignKey: "id_skema", as: "frAk05" });
 
-FrAk05.belongsTo(Tuk, { foreignKey: "id_tuk", as: "tuk" }); 
+FrAk05.belongsTo(Tuk, { foreignKey: "id_tuk", as: "tuk" });
 Tuk.hasMany(FrAk05, { foreignKey: "id_tuk", as: "frAk05" });
 
-FrAk05.belongsTo(User, { foreignKey: "id_asesor", as: "asesor" }); 
+FrAk05.belongsTo(User, { foreignKey: "id_asesor", as: "asesor" });
 User.hasMany(FrAk05, { foreignKey: "id_asesor", as: "frAk05" });
 
-FrAk05.belongsTo(User, { foreignKey: "id_asesi", as: "asesi" }); 
+FrAk05.belongsTo(User, { foreignKey: "id_asesi", as: "asesi" });
 User.hasMany(FrAk05, { foreignKey: "id_asesi", as: "frAk05Asesi" });
 
 FrAk05.belongsTo(ProfileAsesor, { foreignKey: "id_asesor", as: "profileAsesor" });
@@ -260,25 +254,32 @@ Tuk.hasMany(FrAk06, { foreignKey: "id_tuk", as: "frAk06" });
 
 FrAk06.belongsTo(ProfileAsesor, { foreignKey: "id_user", as: "profileAsesor" });
 
-FrAk07.belongsTo(PesertaJadwal, { foreignKey: "id_peserta_jadwal", as: "pesertaJadwal" }); 
+FrAk07.belongsTo(PesertaJadwal, { foreignKey: "id_peserta_jadwal", as: "pesertaJadwal" });
 PesertaJadwal.hasMany(FrAk07, { foreignKey: "id_peserta_jadwal", as: "frAk07" });
 
-FrAk07.belongsTo(User, { foreignKey: "id_asesor", as: "asesor" }); 
+FrAk07.belongsTo(User, { foreignKey: "id_asesor", as: "asesor" });
 User.hasMany(FrAk07, { foreignKey: "id_asesor" });
 
 FrAk07.belongsTo(ProfileAsesor, { foreignKey: "id_asesor", as: "profileAsesor" });
 
-PesertaJadwal.hasMany(Mapa02Peserta, { foreignKey: "id_peserta" }); 
+PesertaJadwal.hasMany(Mapa02Peserta, { foreignKey: "id_peserta" });
 Mapa02Peserta.belongsTo(PesertaJadwal, { foreignKey: "id_peserta", as: "pesertaJadwal" });
 
-Mapa.hasMany(Mapa02Peserta, { foreignKey: "id_mapa" }); 
+Mapa.hasMany(Mapa02Peserta, { foreignKey: "id_mapa" });
 Mapa02Peserta.belongsTo(Mapa, { foreignKey: "id_mapa", as: "mapa" });
 
 Mapa02Mapping.hasMany(Mapa02Peserta, { foreignKey: "id_mapping" });
 Mapa02Peserta.belongsTo(Mapa02Mapping, { foreignKey: "id_mapping", as: "mapping" });
 
-PesertaJadwal.hasMany(PresensiPraAsesmen, { foreignKey: "id_peserta" }); 
+PesertaJadwal.hasMany(PresensiPraAsesmen, { foreignKey: "id_peserta" });
 PresensiPraAsesmen.belongsTo(PesertaJadwal, { foreignKey: "id_peserta", as: "peserta" });
+
+// RELASI TUK YANG BARU (Ini yang menyelesaikan Error TUK)
+User.hasMany(Tuk, { foreignKey: "id_penanggung_jawab" });
+Tuk.belongsTo(User, { 
+  foreignKey: "id_penanggung_jawab",
+  as: "penanggungJawab"
+});
 
 module.exports = {
   User,
