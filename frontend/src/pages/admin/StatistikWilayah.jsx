@@ -18,11 +18,11 @@ const StatistikWilayah = () => {
   const fetchData = async () => {
     setLoading(true);
     try {
-      // GANTI URL INI SESUAI DENGAN ENDPOINT API ANDA
-      // Contoh: const response = await api.get("/asesor");
+      // UNCOMMENT & SESUAIKAN KODE DI BAWAH INI UNTUK MENGGUNAKAN API ASLI
+      // const response = await api.get("/asesor");
       // const data = response.data.data;
       
-      // MOCK DATA (Hapus mock ini dan gunakan fetch API sungguhan di atas)
+      // MOCK DATA SEMENTARA
       const mockData = [
         { nama_lengkap: "Asesor 1", provinsi: "Jawa Tengah", kota: "Semarang" },
         { nama_lengkap: "Asesor 2", provinsi: "Jawa Tengah", kota: "Surakarta" },
@@ -31,7 +31,7 @@ const StatistikWilayah = () => {
         { nama_lengkap: "Asesor 5", provinsi: "Jawa Tengah", kota: "Semarang" },
         { nama_lengkap: "Asesor 6", provinsi: "DKI Jakarta", kota: "Jakarta Selatan" },
       ];
-      const data = mockData; // Ganti dengan data dari API
+      const data = mockData; // Ganti dengan data dari API asli Anda
 
       setDataAsesor(data);
       processStats(data);
@@ -43,25 +43,44 @@ const StatistikWilayah = () => {
   };
 
   const processStats = (data) => {
-    // Kelompokkan berdasarkan Provinsi
-    const provCount = data.reduce((acc, curr) => {
-      const prov = curr.provinsi || "Belum Ditentukan";
-      acc[prov] = (acc[prov] || 0) + 1;
-      return acc;
-    }, {});
+    // 1. Daftar 38 Provinsi di Indonesia (Untuk memastikan semua wilayah tampil walau datanya 0)
+    const daftarProvinsi = [
+      "Aceh", "Sumatera Utara", "Sumatera Barat", "Riau", "Jambi", "Sumatera Selatan", 
+      "Bengkulu", "Lampung", "Kepulauan Bangka Belitung", "Kepulauan Riau", "DKI Jakarta", 
+      "Jawa Barat", "Jawa Tengah", "DI Yogyakarta", "Jawa Timur", "Banten", "Bali", 
+      "Nusa Tenggara Barat", "Nusa Tenggara Timur", "Kalimantan Barat", "Kalimantan Tengah", 
+      "Kalimantan Selatan", "Kalimantan Timur", "Kalimantan Utara", "Sulawesi Utara", 
+      "Sulawesi Tengah", "Sulawesi Selatan", "Sulawesi Tenggara", "Gorontalo", "Sulawesi Barat", 
+      "Maluku", "Maluku Utara", "Papua", "Papua Barat", "Papua Selatan", "Papua Tengah", 
+      "Papua Pegunungan", "Papua Barat Daya"
+    ];
 
+    // Buat objek default dimana semua provinsi bernilai 0
+    const provCount = {};
+    daftarProvinsi.forEach(prov => provCount[prov] = 0);
+
+    // 2. Hitung jumlah asesor per Provinsi dari data asli
+    data.forEach(curr => {
+      const prov = curr.provinsi;
+      if (prov) {
+        provCount[prov] = (provCount[prov] || 0) + 1;
+      }
+    });
+
+    // Petakan jadi array dan urutkan berdasarkan jumlah TERBANYAK ke terkecil
     const arrProv = Object.keys(provCount).map((key) => ({
       name: key,
       count: provCount[key],
     })).sort((a, b) => b.count - a.count);
 
-    // Kelompokkan berdasarkan Kota
+    // 3. Hitung jumlah berdasarkan Kota/Kabupaten (Otomatis berdasarkan data)
     const kotaCount = data.reduce((acc, curr) => {
       const kota = curr.kota || "Belum Ditentukan";
       acc[kota] = (acc[kota] || 0) + 1;
       return acc;
     }, {});
 
+    // Urutkan Kota berdasarkan jumlah TERBANYAK ke terkecil
     const arrKota = Object.keys(kotaCount).map((key) => ({
       name: key,
       count: kotaCount[key],
@@ -79,6 +98,8 @@ const StatistikWilayah = () => {
     );
   }
 
+  // Gunakan filter untuk total provinsi/kota yang benar-benar ada data asesornya
+  const provinsiAktif = statsProvinsi.filter(p => p.count > 0).length;
   const totalAsesor = dataAsesor.length;
 
   return (
@@ -112,7 +133,7 @@ const StatistikWilayah = () => {
           </div>
           <div>
             <p className="text-xs text-gray-500 font-semibold uppercase">Total Provinsi</p>
-            <p className="text-2xl font-bold text-[#071E3D]">{statsProvinsi.length}</p>
+            <p className="text-2xl font-bold text-[#071E3D]">{provinsiAktif}</p>
           </div>
         </div>
 
@@ -132,24 +153,29 @@ const StatistikWilayah = () => {
         <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
           <div className="bg-[#071E3D] px-5 py-4 border-b border-gray-100">
             <h2 className="font-semibold text-[#FAFAFA] flex items-center gap-2">
-              Sebaran Provinsi
+              Sebaran Provinsi (Semua Wilayah)
             </h2>
           </div>
           <div className="p-5 max-h-[400px] overflow-y-auto custom-scrollbar">
-            {statsProvinsi.length > 0 ? statsProvinsi.map((item, index) => (
-              <div key={index} className="mb-4 last:mb-0">
-                <div className="flex justify-between text-sm mb-1">
-                  <span className="font-medium text-gray-700">{item.name}</span>
-                  <span className="text-gray-500">{item.count} Asesor ({(item.count / totalAsesor * 100).toFixed(1)}%)</span>
+            {statsProvinsi.length > 0 ? statsProvinsi.map((item, index) => {
+              // Jika datanya 0, maka persentase juga 0 (hindari NaN error)
+              const percentage = totalAsesor === 0 ? 0 : (item.count / totalAsesor * 100).toFixed(1);
+              
+              return (
+                <div key={index} className="mb-4 last:mb-0">
+                  <div className="flex justify-between text-sm mb-1">
+                    <span className="font-medium text-gray-700">{index + 1}. {item.name}</span>
+                    <span className="text-gray-500">{item.count} Asesor ({percentage}%)</span>
+                  </div>
+                  <div className="w-full bg-gray-200 rounded-full h-2">
+                    <div 
+                      className="bg-[#CC6B27] h-2 rounded-full" 
+                      style={{ width: `${percentage}%` }}
+                    ></div>
+                  </div>
                 </div>
-                <div className="w-full bg-gray-200 rounded-full h-2">
-                  <div 
-                    className="bg-[#CC6B27] h-2 rounded-full" 
-                    style={{ width: `${(item.count / totalAsesor) * 100}%` }}
-                  ></div>
-                </div>
-              </div>
-            )) : (
+              );
+            }) : (
               <p className="text-center text-gray-500 py-4">Tidak ada data provinsi</p>
             )}
           </div>
@@ -159,7 +185,7 @@ const StatistikWilayah = () => {
         <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
           <div className="bg-[#071E3D] px-5 py-4 border-b border-gray-100">
             <h2 className="font-semibold text-[#FAFAFA] flex items-center gap-2">
-              Sebaran Kota/Kabupaten
+              Sebaran Kota/Kabupaten Terbanyak
             </h2>
           </div>
           <div className="p-0 max-h-[400px] overflow-y-auto custom-scrollbar">

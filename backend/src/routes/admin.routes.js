@@ -44,6 +44,7 @@ router.get("/surveillance/export", ctrl.exportSurveillance);
 router.get("/profile", adminProfile.getProfile);
 router.put("/profile", adminProfile.updateProfile);
 
+
 router.post( "/dokumen-mutu", upload, dokumenMutuController.createDokumen);
 router.put( "/dokumen-mutu/:id", upload, dokumenMutuController.updateDokumen);
 router.get("/dokumen-mutu", dokumenMutuController.getAllDokumen);
@@ -55,25 +56,29 @@ router.get("/asesor/:id", asesorAdmin.getById);
 router.put("/asesor/:id", asesorAdmin.update);
 router.delete("/asesor/:id", asesorAdmin.delete);
 router.post("/import-asesor", uploadExcel.single("file"), asesorAdmin.importAsesorExcel);
-router.post("/asesor/:id/reset-password", asesorAdmin.resetPassword);
+router.put("/asesor/:id/reset-password", asesorAdmin.resetPassword);
 
 router.post("/import-asesi", uploadExcel.single("file"), asesiAdmin.importAsesiExcel);
 router.get("/asesi", asesiAdmin.getAll);
 router.get("/asesi/:id", asesiAdmin.getById);
 router.put("/asesi/:id", asesiAdmin.update);
 router.delete("/asesi/:id", asesiAdmin.delete);
-router.post("/asesi/:id/reset-password", asesiAdmin.resetPassword);
+router.put("/asesi/:id/reset-password", asesiAdmin.resetPassword);
 
-router.post("/tuk-akun", tukAdmin.createTuk);
+router.post("/tuk", tukAdmin.createTuk);
 router.post("/import-tuk", uploadExcel.single("file"), tukAdmin.importTukExcel);
 router.get("/tuk", tukAdmin.getAll);
 router.get("/tuk/:id", tukAdmin.getById);
 router.put("/tuk/:id", tukAdmin.update);
 router.delete("/tuk/:id", tukAdmin.delete);
+router.post("/tuk-tempat/attach-skema", tukAdmin.attachSkema);
+router.delete( "/tuk-tempat/detach-skema/:id_tuk/:id_skema", tukAdmin.detachSkema);
+router.put("/tuk/:id/reset-password", tukAdmin.resetPassword);
 
 router.post("/send-email/:id", accountController.sendAccountEmailManual);
 
 router.get("/dashboard", adminController.getDashboard);
+router.put("/admin/:id/reset-password", adminController.resetPassword);
 
 router.get("/pendaftaran", pendaftaranController.getAll);
 router.post("/pendaftaran/:id/approve", pendaftaranController.approvePendaftaran);
@@ -103,10 +108,10 @@ router.get("/skkni", skkniController.getAll);
 router.get("/skkni/:id", skkniController.getById);
 router.delete("/skkni/:id", skkniController.delete);
 
-router.post("/skema", upload, skemaController.create);
+router.post("/skema", skemaController.create);
 router.get("/skema", skemaController.getAll);
 router.get("/skema/:id", skemaController.getDetail);
-router.put("/skema/:id", upload, skemaController.update);
+router.put("/skema/:id", skemaController.update);
 router.delete("/skema/:id", skemaController.delete);
 
 router.post("/biaya-uji", biayaUjiController.create);
@@ -128,25 +133,16 @@ router.get("/persyaratan-tuk", persyaratanTukController.getAll);
 router.post("/persyaratan-tuk/attach", persyaratanTukController.attachToSkema);
 router.delete( "/persyaratan-tuk/detach/:id_skema/:id_persyaratan_tuk", persyaratanTukController.detachFromSkema);
 
-
 router.post("/kelompok-pekerjaan", kelompokPekerjaanController.create);
 router.get( "/kelompok-pekerjaan/skema/:id_skema", kelompokPekerjaanController.getBySkema);
 router.put("/kelompok-pekerjaan/:id", kelompokPekerjaanController.update);
 router.delete("/kelompok-pekerjaan/:id", kelompokPekerjaanController.delete);
 
-router.post("/tuk-tempat", tukTempatController.create);
-router.get("/tuk-tempat", tukTempatController.getAll);
-router.put("/tuk-tempat/:id", tukTempatController.update);
-router.delete("/tuk-tempat/:id", tukTempatController.delete);
-
-router.post("/tuk-tempat/attach-skema", tukTempatController.attachSkema);
-router.delete( "/tuk-tempat/detach-skema/:id_tuk/:id_skema", tukTempatController.detachSkema);
-
 router.get("/banding", bandingController.getAllBanding);
 router.put("/banding/:id", bandingController.updateStatusBanding);
 
-router.get( "/jadwal/:id_jadwal/peserta", pesertaJadwalController.getPesertaByJadwal);
 router.get("/peserta-jadwal/global", pesertaJadwalController.getAllPesertaGlobal);
+router.get( "/jadwal/:id_jadwal/peserta", pesertaJadwalController.getPesertaByJadwal);
 
 router.post("/unit-kompetensi", unitKompetensiController.create);
 router.get("/unit-kompetensi", unitKompetensiController.getAll);
@@ -190,7 +186,5 @@ router.post("/ia03-pertanyaan", ia03Controller.create);
 router.put("/ia03-pertanyaan/:id", ia03Controller.update);
 router.get("/ia03-pertanyaan/unit/:id_unit", ia03Controller.getByUnit);
 router.delete("/ia03-pertanyaan/:id", ia03Controller.delete);
-
-router.post("/admin/:id/reset-password", adminController.resetPassword);
 
 module.exports = router;

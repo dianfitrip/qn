@@ -14,7 +14,6 @@ const Sidebar = () => {
 
   // State untuk Dropdown Menu
   const [openMenus, setOpenMenus] = useState({
-    laporan: false,
     standar: false,
     asesi: false,
     asesor: false
@@ -27,7 +26,6 @@ const Sidebar = () => {
       const newState = { ...prev };
       const isPathActive = (pathsArray) => pathsArray.some(p => path.startsWith(p));
 
-      newState.laporan = isPathActive(['/admin/laporan']);
       // '/admin/bank-soal' & '/admin/bank-soal-pg' tetap dipertahankan di sini agar menu Standar Kompetensi 
       // tetap terbuka & menyala (highlight) ketika user sedang mengelola soal dari halaman unit kompetensi
       newState.standar = isPathActive(['/admin/unit-kompetensi', '/admin/skkni', '/admin/bank-soal', '/admin/bank-soal-pg']);
@@ -55,7 +53,6 @@ const Sidebar = () => {
   const toggleMenu = (key) => {
     setOpenMenus((prev) => {
       const newState = {
-        laporan: false,
         standar: false,
         asesi: false,
         asesor: false
@@ -155,26 +152,13 @@ const Sidebar = () => {
         {/* REPORTING */}
         <SectionLabel>Reporting</SectionLabel>
         
-        <button className={getNavItemClass(isActive('/admin/laporan'))} onClick={() => toggleMenu('laporan')}>
+        {/* MENU LAPORAN SERTIFIKASI (TIDAK LAGI DROPDOWN) */}
+        <button className={getNavItemClass(isActive('/admin/laporan/umum'))} onClick={() => handleNav('/admin/laporan/umum')}>
           <div className="flex items-center flex-1">
             <FaChartBar className="text-lg mr-3" />
             <span className="text-left">Laporan Sertifikasi</span>
           </div>
-          {openMenus.laporan ? <FaChevronDown className="text-xs" /> : <FaChevronRight className="text-xs" />}
         </button>
-        {openMenus.laporan && (
-          <div className="flex flex-col mb-1 mt-1 bg-[#071E3D]">
-            <button className={getSubItemClass(isActive('/admin/laporan/umum'))} onClick={() => handleNav('/admin/laporan/umum')}>
-              <span className={`w-1.5 h-1.5 rounded-full mr-3 ${isActive('/admin/laporan/umum') ? 'bg-[#CC6B27]' : 'bg-[#FAFAFA]/40'}`}></span>Laporan Umum
-            </button>
-            <button className={getSubItemClass(isActive('/admin/laporan/bulanan'))} onClick={() => handleNav('/admin/laporan/bulanan')}>
-              <span className={`w-1.5 h-1.5 rounded-full mr-3 ${isActive('/admin/laporan/bulanan') ? 'bg-[#CC6B27]' : 'bg-[#FAFAFA]/40'}`}></span>Laporan Bulanan
-            </button>
-            <button className={getSubItemClass(isActive('/admin/laporan/tahunan'))} onClick={() => handleNav('/admin/laporan/tahunan')}>
-              <span className={`w-1.5 h-1.5 rounded-full mr-3 ${isActive('/admin/laporan/tahunan') ? 'bg-[#CC6B27]' : 'bg-[#FAFAFA]/40'}`}></span>Laporan Tahunan
-            </button>
-          </div>
-        )}
 
         {/* MASTER DATA */}
         <SectionLabel>Master Data</SectionLabel>
@@ -214,7 +198,6 @@ const Sidebar = () => {
         {/* OPERASIONAL */}
         <SectionLabel>Operasional</SectionLabel>
 
-        {/* MENU JADWAL UJI KOMPETENSI */}
         <button className={getNavItemClass(isActive('/admin/jadwal/uji-kompetensi'))} onClick={() => handleNav('/admin/jadwal/uji-kompetensi')}>
           <div className="flex items-center flex-1">
             <FaCalendarAlt className="text-lg mr-3" />

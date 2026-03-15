@@ -1,11 +1,10 @@
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
-const User = require("../../models/user.model");
-const Role = require("../../models/role.model");
-const Tuk = require("../../models/tuk.model"); // ✅ TAMBAHKAN INI
+const { User, Role, Tuk } = require("../../models");
 const { secret, expiresIn } = require("../../config/jwt");
 
 exports.login = async (req, res) => {
+
   try {
 
     const { username, password } = req.body;
@@ -17,7 +16,6 @@ exports.login = async (req, res) => {
       });
     }
 
-    // 🔎 Cari user + role
     const user = await User.findOne({
       where: { username },
       include: [Role]
@@ -30,7 +28,6 @@ exports.login = async (req, res) => {
       });
     }
 
-    // 🔒 Cek status akun
     if (user.status_user !== "aktif") {
       return res.status(403).json({
         success: false,
@@ -38,27 +35,27 @@ exports.login = async (req, res) => {
       });
     }
 
-    // 🔐 Validasi password
-    const valid = await bcrypt.compare(password, user.password_hash);
+    const validPassword = await bcrypt.compare(
+      password,
+      user.password_hash
+    );
 
-    if (!valid) {
+    if (!validPassword) {
       return res.status(401).json({
         success: false,
         message: "Password salah"
       });
     }
 
-    // ✅ Ambil role
     const roleName = user.role?.role_name?.toLowerCase() || null;
 
     let idTuk = null;
 
-    // 🔥 Jika role = TUK → ambil id_tuk dari tabel tuk
     if (roleName === "tuk") {
 
       const tukData = await Tuk.findOne({
         where: {
-          kode_tuk: user.username
+          id_penanggung_jawab: user.id_user
         }
       });
 
@@ -68,7 +65,6 @@ exports.login = async (req, res) => {
 
     }
 
-    // 🔐 Generate JWT
     const token = jwt.sign(
       {
         id_user: user.id_user,
@@ -101,7 +97,9 @@ exports.login = async (req, res) => {
       success: false,
       message: "Terjadi kesalahan server"
     });
+
   }
+
 };
 
 exports.logout = async (req, res) => {
