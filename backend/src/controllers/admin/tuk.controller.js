@@ -1,9 +1,9 @@
 const XLSX = require("xlsx");
 const { User, Role, Tuk, ProfileTuk, TukSkema } = require("../../models");
-const { createNotifikasi } = require("../../services/notifikasi.service");
 const response = require("../../utils/response.util");
 const { createUser, resetUserPassword } = require("../../services/account.service");
 const { sendAccountEmail } = require("../../services/email.service");
+const { createNotifikasi } = require("../../services/notifikasi.service");
 const sequelize = require("../../config/database");
 const { Op } = require("sequelize");
 
@@ -11,22 +11,6 @@ exports.createTuk = async (req, res) => {
   const t = await sequelize.transaction();
 
   try {
-    let role = await Role.findOne({
-      where: { role_name: "TUK" },
-      transaction: t
-    });
-
-    if (!role) {
-      role = await Role.create({ role_name: "TUK" }, { transaction: t });
-    }
-
-    const { user, rawPassword } = await createUser({
-      username: req.body.kode_tuk,
-      email: req.body.email,
-      no_hp: req.body.telepon,
-      id_role: role.id_role
-    }, { transaction: t });
-
     const tuk = await Tuk.create({
       kode_tuk: req.body.kode_tuk,
       nama_tuk: req.body.nama_tuk,
@@ -43,49 +27,21 @@ exports.createTuk = async (req, res) => {
       no_lisensi: req.body.no_lisensi,
       masa_berlaku_lisensi: req.body.masa_berlaku_lisensi || null,
       status: "nonaktif",
-      id_penanggung_jawab: user.id_user 
+      id_penanggung_jawab: null 
     }, { transaction: t });
-
-    await ProfileTuk.upsert({
-      id_user: user.id_user,
-      nama_lengkap: req.body.nama_tuk,
-      alamat: req.body.alamat,
-      provinsi: req.body.provinsi,
-      kota: req.body.kota,
-      kecamatan: req.body.kecamatan,
-      kelurahan: req.body.kelurahan,
-      kode_pos: req.body.kode_pos
-    }, { transaction: t });
-
-    await createNotifikasi({
-      channel: "email",
-      tujuan: req.body.email,
-      pesan: `Akun TUK berhasil dibuat.\nUsername: ${req.body.kode_tuk}\nPassword: ${rawPassword}`,
-      status_kirim: "terkirim",
-      ref_type: "akun",
-      ref_id: user.id_user
-    });
 
     await t.commit();
-
-    return response.success(res, "TUK berhasil dibuat dan email terkirim.");
+    return response.success(res, "Data TUK berhasil ditambahkan. Akun belum dibuat.");
 
   } catch (err) {
     await t.rollback();
     
-    // --- PENANGANAN ERROR DUPLIKAT YANG LEBIH JELAS UNTUK FRONTEND ---
     if (err.name === 'SequelizeUniqueConstraintError') {
-      const field = err.errors[0].path; // Mengecek kolom apa yang duplikat
-      
-      if (field === 'email') {
-        return response.error(res, "Gagal! Email tersebut sudah terdaftar. Silakan gunakan email yang berbeda.", 400);
-      } else if (field === 'kode_tuk' || field === 'username') {
+      const field = err.errors[0].path;
+      if (field === 'kode_tuk') {
         return response.error(res, "Gagal! Kode TUK tersebut sudah pernah didaftarkan. Silakan gunakan kode lain.", 400);
-      } else {
-        return response.error(res, `Gagal! Data ${field} sudah digunakan.`, 400);
       }
     }
-
     return response.error(res, err.message);
   }
 };
@@ -106,16 +62,6 @@ exports.importTukExcel = async (req, res) => {
     for (const row of rows) {
       const t = await sequelize.transaction();
       try {
-        let role = await Role.findOne({ where: { role_name: "TUK" } });
-        if (!role) role = await Role.create({ role_name: "TUK" }, { transaction: t });
-
-        const { user, rawPassword } = await createUser({
-          username: row.kode_tuk,
-          email: row.email,
-          no_hp: row.telepon,
-          id_role: role.id_role
-        }, { transaction: t });
-
         await Tuk.create({
           kode_tuk: row.kode_tuk,
           nama_tuk: row.nama_tuk,
@@ -132,28 +78,8 @@ exports.importTukExcel = async (req, res) => {
           no_lisensi: row.no_lisensi,
           masa_berlaku_lisensi: row.masa_berlaku_lisensi || null,
           status: "nonaktif",
-          id_penanggung_jawab: user.id_user
+          id_penanggung_jawab: null
         }, { transaction: t });
-
-        await ProfileTuk.upsert({
-          id_user: user.id_user,
-          nama_lengkap: row.nama_tuk,
-          alamat: row.alamat,
-          provinsi: row.provinsi,
-          kota: row.kota,
-          kecamatan: row.kecamatan,
-          kelurahan: row.kelurahan,
-          kode_pos: row.kode_pos
-        }, { transaction: t });
-
-        await createNotifikasi({
-          channel: "email",
-          tujuan: row.email,
-          pesan: `Akun TUK berhasil dibuat.\nUsername: ${row.kode_tuk}\nPassword: ${rawPassword}`,
-          status_kirim: "terkirim",
-          ref_type: "akun",
-          ref_id: user.id_user
-        });
 
         await t.commit();
         success++;
@@ -170,18 +96,30 @@ exports.importTukExcel = async (req, res) => {
   }
 };
 
+// ==============================================
+// FITUR BARU: GET ALL DENGAN FILTER STATUS
+// ==============================================
 exports.getAll = async (req, res) => {
   try {
     const page = parseInt(req.query.page);
     const limit = parseInt(req.query.limit);
     const search = req.query.search || "";
+    const status = req.query.status || ""; // Menangkap query status dari frontend
 
-    const whereClause = search ? {
-      [Op.or]: [
+    const whereClause = {};
+
+    // 1. Jika ada pencarian teks
+    if (search) {
+      whereClause[Op.or] = [
         { kode_tuk: { [Op.like]: `%${search}%` } },
         { nama_tuk: { [Op.like]: `%${search}%` } }
-      ]
-    } : {};
+      ];
+    }
+
+    // 2. Jika ada filter status
+    if (status) {
+      whereClause.status = status;
+    }
 
     if (page && limit) {
       const offset = (page - 1) * limit;
@@ -242,7 +180,6 @@ exports.update = async (req, res) => {
     if (err.name === 'SequelizeUniqueConstraintError') {
       const field = err.errors[0].path;
       if (field === 'kode_tuk') return response.error(res, "Kode TUK tersebut sudah dipakai TUK lain.", 400);
-      if (field === 'email') return response.error(res, "Email tersebut sudah dipakai TUK lain.", 400);
     }
     return response.error(res, err.message);
   }
@@ -326,9 +263,6 @@ exports.resetPassword = async (req, res) => {
   }
 };
 
-// ==============================================
-// FITUR BARU: GENERATE AKUN TUK
-// ==============================================
 exports.generateAccount = async (req, res) => {
   const t = await sequelize.transaction();
   try {
@@ -376,8 +310,6 @@ exports.generateAccount = async (req, res) => {
 
   } catch (err) {
     await t.rollback();
-    
-    // --- PENANGANAN ERROR DUPLIKAT (GENERATE ACCOUNT) ---
     if (err.name === 'SequelizeUniqueConstraintError') {
       const field = err.errors[0].path;
       if (field === 'email') {
@@ -386,7 +318,6 @@ exports.generateAccount = async (req, res) => {
         return response.error(res, "Gagal generate akun! Kode TUK ini bentrok dengan username lain.", 400);
       }
     }
-    
     return response.error(res, err.message);
   }
 };

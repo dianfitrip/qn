@@ -11,7 +11,10 @@ const TempatUji = () => {
   // --- STATE UTAMA ---
   const [data, setData] = useState([]);
   const [loading, setLoading] = useState(true);
+  
+  // STATE FILTER & SEARCH
   const [searchTerm, setSearchTerm] = useState('');
+  const [filterStatus, setFilterStatus] = useState(''); // State baru untuk status
   
   // Modal State
   const [showModal, setShowModal] = useState(false);
@@ -51,10 +54,11 @@ const TempatUji = () => {
   const [formData, setFormData] = useState(initialFormState);
 
   // --- LOAD DATA ---
+  // Pastikan dependency useEffect mencakup filterStatus
   useEffect(() => {
     fetchData();
     fetchProvinsiInit();
-  }, [pagination.page, searchTerm]);
+  }, [pagination.page, searchTerm, filterStatus]);
 
   // --- API FUNCTIONS ---
   const fetchData = async () => {
@@ -64,7 +68,8 @@ const TempatUji = () => {
         params: {
           page: pagination.page,
           limit: pagination.limit,
-          search: searchTerm
+          search: searchTerm,
+          status: filterStatus // Kirim filter status ke backend
         }
       });
 
@@ -145,7 +150,6 @@ const TempatUji = () => {
   const selectedKotaId = kotaList.find(k => k.name === formData.kota)?.id || "";
   const selectedKecamatanId = kecamatanList.find(k => k.name === formData.kecamatan)?.id || "";
   const selectedKelurahanId = kelurahanList.find(k => k.name === formData.kelurahan)?.id || "";
-
 
   // --- FORM HANDLERS ---
   const handleInputChange = (e) => {
@@ -248,16 +252,12 @@ const TempatUji = () => {
   };
 
   // --- ACTIONS ---
-
-  // FUNGSI BARU UNTUK HANDLE GENERATE ACCOUNT + SEND EMAIL
-  const handleSendEmail = async (tukId, userId) => {
-    if (!tukId) return;
+  const handleSendEmail = async (tukId, hasAccount) => {
+    if (!tukId || hasAccount) return; 
     
     const confirm = await Swal.fire({
-      title: userId ? 'Kirim Ulang Email?' : 'Buat & Kirim Akun?',
-      text: userId 
-        ? "Kirim ulang email berisi informasi login ke TUK ini?" 
-        : "Akun penanggung jawab untuk TUK ini belum ada. Sistem akan membuatkan akun dan mengirimkannya via email. Lanjutkan?",
+      title: 'Buat & Kirim Akun?',
+      text: "Akun penanggung jawab untuk TUK ini belum ada. Sistem akan membuatkan akun dan mengirimkannya via email. Lanjutkan?",
       icon: 'question',
       showCancelButton: true,
       confirmButtonColor: '#CC6B27',
@@ -267,23 +267,35 @@ const TempatUji = () => {
     });
 
     if (confirm.isConfirmed) {
-      try {
-        let targetUserId = userId;
-        
-        // 1. Jika belum punya akun (userId kosong), minta backend buatkan akun dulu
-        if (!targetUserId) {
-          const resGenerate = await api.post(`/admin/tuk/${tukId}/generate-account`);
-          // Ambil id_user yang baru dibuat dari response backend
-          targetUserId = resGenerate.data.data.id_user; 
+      Swal.fire({
+        title: 'Memproses...',
+        text: 'Sedang membuat akun dan mengirim email...',
+        allowOutsideClick: false,
+        didOpen: () => {
+          Swal.showLoading();
         }
+      });
 
-        // 2. Tembak API Send Email bawaan account.controller.js menggunakan ID User
+      try {
+        const resGenerate = await api.post(`/admin/tuk/${tukId}/generate-account`);
+        const targetUserId = resGenerate.data.data.id_user; 
         await api.post(`/admin/send-email/${targetUserId}`);
         
-        Swal.fire({title: 'Sukses', text: 'Akun berhasil diproses & email dikirim.', icon: 'success', confirmButtonColor: '#CC6B27'});
-        fetchData(); // Refresh tabel agar icon/data terupdate
+        Swal.fire({
+          title: 'Sukses', 
+          text: 'Akun berhasil dibuat & email informasi login telah dikirim.', 
+          icon: 'success', 
+          confirmButtonColor: '#CC6B27'
+        });
+        
+        fetchData(); 
       } catch (error) {
-        Swal.fire({title: 'Gagal', text: error.response?.data?.message || 'Gagal memproses akun/email', icon: 'error', confirmButtonColor: '#CC6B27'});
+        Swal.fire({
+          title: 'Gagal', 
+          text: error.response?.data?.message || 'Gagal memproses akun/email', 
+          icon: 'error', 
+          confirmButtonColor: '#CC6B27'
+        });
       }
     }
   };
@@ -329,7 +341,7 @@ const TempatUji = () => {
         Swal.fire({title: 'Sukses', text: 'Data TUK berhasil diperbarui', icon: 'success', confirmButtonColor: '#CC6B27'});
       } else {
         await api.post('/admin/tuk', payload);
-        Swal.fire({title: 'Sukses', text: 'TUK baru berhasil dibuat.', icon: 'success', confirmButtonColor: '#CC6B27'});
+        Swal.fire({title: 'Sukses', text: 'TUK baru berhasil ditambahkan.', icon: 'success', confirmButtonColor: '#CC6B27'});
       }
       setShowModal(false);
       fetchData();
@@ -408,17 +420,38 @@ const TempatUji = () => {
       {/* CONTENT */}
       <div className="bg-white border border-[#071E3D]/10 rounded-xl shadow-sm p-6 flex flex-col gap-6">
         
-        {/* Search */}
-        <div className="w-full md:w-80 relative group">
-          <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#182D4A]/50 group-focus-within:text-[#CC6B27] transition-colors" />
-          <input 
-            type="text" 
-            className="w-full pl-10 pr-4 py-2.5 rounded-lg border border-[#071E3D]/20 text-[#071E3D] bg-[#FAFAFA] focus:bg-white focus:outline-none focus:border-[#CC6B27] focus:ring-2 focus:ring-[#CC6B27]/10 transition-all text-[13px]" 
-            placeholder="Cari Kode atau Nama TUK..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-          />
+        {/* --- PENCARIAN & FILTER --- */}
+        <div className="flex flex-col md:flex-row gap-3 w-full">
+          {/* Kolom Pencarian */}
+          <div className="w-full md:w-80 relative group">
+            <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#182D4A]/50 group-focus-within:text-[#CC6B27] transition-colors" />
+            <input 
+              type="text" 
+              className="w-full pl-10 pr-4 py-2.5 rounded-lg border border-[#071E3D]/20 text-[#071E3D] bg-[#FAFAFA] focus:bg-white focus:outline-none focus:border-[#CC6B27] focus:ring-2 focus:ring-[#CC6B27]/10 transition-all text-[13px]" 
+              placeholder="Cari Kode atau Nama TUK..."
+              value={searchTerm}
+              onChange={(e) => {
+                setSearchTerm(e.target.value);
+                setPagination(prev => ({...prev, page: 1})); // Reset ke halaman 1 saat mengetik
+              }}
+            />
+          </div>
+
+          {/* Dropdown Filter Status */}
+          <select 
+            value={filterStatus}
+            onChange={(e) => {
+              setFilterStatus(e.target.value);
+              setPagination(prev => ({...prev, page: 1})); // Reset ke halaman 1 saat filter berubah
+            }}
+            className="w-full md:w-48 px-3 py-2.5 rounded-lg border border-[#071E3D]/20 text-[#071E3D] bg-[#FAFAFA] focus:bg-white focus:outline-none focus:border-[#CC6B27] focus:ring-2 focus:ring-[#CC6B27]/10 transition-all text-[13px] font-medium appearance-none cursor-pointer"
+          >
+            <option value="">Semua Status</option>
+            <option value="aktif">Status: Aktif</option>
+            <option value="nonaktif">Status: Nonaktif</option>
+          </select>
         </div>
+        {/* ---------------------------- */}
 
         {/* Table */}
         <div className="overflow-x-auto rounded-lg border border-[#071E3D]/10">
@@ -466,8 +499,20 @@ const TempatUji = () => {
                     </td>
                     <td className="py-4 px-4">
                       <div className="flex justify-center gap-1">
-                        {/* UPDATE TOMBOL EMAIL */}
-                        <button onClick={() => handleSendEmail(item.id_tuk, item.penanggungJawab?.id_user)} className="p-1.5 rounded-lg text-[#182D4A] hover:text-[#071E3D] hover:bg-[#071E3D]/10 transition-colors" title={item.penanggungJawab ? "Kirim Ulang Email" : "Buat Akun & Kirim Email"}><Mail size={18}/></button>
+                        
+                        {/* TOMBOL SEND EMAIL - Redup & Disabled jika sudah punya akun */}
+                        <button 
+                          onClick={() => handleSendEmail(item.id_tuk, !!item.penanggungJawab)} 
+                          disabled={!!item.penanggungJawab}
+                          className={`p-1.5 rounded-lg transition-colors ${
+                            item.penanggungJawab 
+                              ? "text-[#182D4A]/30 bg-[#071E3D]/5 cursor-not-allowed" 
+                              : "text-[#182D4A] hover:text-[#071E3D] hover:bg-[#071E3D]/10"
+                          }`} 
+                          title={item.penanggungJawab ? "Akun sudah dibuat" : "Buat Akun & Kirim Email"}
+                        >
+                          <Mail size={18}/>
+                        </button>
                         
                         <button onClick={() => handleResetPassword(item.penanggungJawab?.id_user)} className="p-1.5 rounded-lg text-[#182D4A] hover:text-[#071E3D] hover:bg-[#071E3D]/10 transition-colors" title="Reset Password"><Key size={18}/></button>
                         <button onClick={() => openDetailModal(item.id_tuk)} className="p-1.5 rounded-lg text-[#182D4A] hover:text-[#CC6B27] hover:bg-[#CC6B27]/10 transition-colors" title="Detail"><Eye size={18}/></button>
