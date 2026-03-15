@@ -14,7 +14,7 @@ const TempatUji = () => {
   
   // STATE FILTER & SEARCH
   const [searchTerm, setSearchTerm] = useState('');
-  const [filterStatus, setFilterStatus] = useState(''); // State baru untuk status
+  const [filterStatus, setFilterStatus] = useState('');
   
   // Modal State
   const [showModal, setShowModal] = useState(false);
@@ -54,7 +54,6 @@ const TempatUji = () => {
   const [formData, setFormData] = useState(initialFormState);
 
   // --- LOAD DATA ---
-  // Pastikan dependency useEffect mencakup filterStatus
   useEffect(() => {
     fetchData();
     fetchProvinsiInit();
@@ -69,7 +68,7 @@ const TempatUji = () => {
           page: pagination.page,
           limit: pagination.limit,
           search: searchTerm,
-          status: filterStatus // Kirim filter status ke backend
+          status: filterStatus
         }
       });
 
@@ -346,7 +345,7 @@ const TempatUji = () => {
       setShowModal(false);
       fetchData();
     } catch (error) {
-      console.error("Submit Error:", error);
+      // Memunculkan pesan validasi duplikat dari backend
       Swal.fire({title: 'Gagal', text: error.response?.data?.message || 'Gagal menyimpan data', icon: 'error', confirmButtonColor: '#CC6B27'});
     }
   };
@@ -374,21 +373,35 @@ const TempatUji = () => {
     }
   };
 
+  // ==========================================
+  // FUNGSI IMPORT YANG SUDAH DIPERBAIKI (HEADER)
+  // ==========================================
   const handleImportSubmit = async (e) => {
     e.preventDefault();
-    const file = e.target.elements[0].files[0];
-    if (!file) return Swal.fire({title: 'Peringatan', text: 'Pilih file excel dulu', icon: 'warning', confirmButtonColor: '#CC6B27'});
+    
+    // Menangkap input file dengan cara yang lebih akurat
+    const fileInput = e.target.querySelector('input[type="file"]');
+    const file = fileInput?.files[0];
+    
+    if (!file) {
+        return Swal.fire({title: 'Peringatan', text: 'Pilih file excel terlebih dahulu', icon: 'warning', confirmButtonColor: '#CC6B27'});
+    }
 
     const form = new FormData();
-    form.append('file', file);
+    form.append('file', file); // Harus bernama 'file' sesuai di backend
 
     try {
-      await api.post('/admin/import-tuk', form);
-      Swal.fire({title: 'Sukses', text: 'Import berhasil', icon: 'success', confirmButtonColor: '#CC6B27'});
+      // Menambahkan Header 'multipart/form-data' sangat penting!
+      await api.post('/admin/import-tuk', form, {
+        headers: {
+            'Content-Type': 'multipart/form-data'
+        }
+      });
+      Swal.fire({title: 'Sukses', text: 'Import berhasil diselesaikan!', icon: 'success', confirmButtonColor: '#CC6B27'});
       setShowImportModal(false);
       fetchData();
     } catch (err) {
-      Swal.fire({title: 'Gagal', text: err.response?.data?.message || 'Import gagal', icon: 'error', confirmButtonColor: '#CC6B27'});
+      Swal.fire({title: 'Gagal Import', text: err.response?.data?.message || 'Gagal membaca atau memproses file Excel', icon: 'error', confirmButtonColor: '#CC6B27'});
     }
   };
 
@@ -432,7 +445,7 @@ const TempatUji = () => {
               value={searchTerm}
               onChange={(e) => {
                 setSearchTerm(e.target.value);
-                setPagination(prev => ({...prev, page: 1})); // Reset ke halaman 1 saat mengetik
+                setPagination(prev => ({...prev, page: 1})); 
               }}
             />
           </div>
@@ -442,7 +455,7 @@ const TempatUji = () => {
             value={filterStatus}
             onChange={(e) => {
               setFilterStatus(e.target.value);
-              setPagination(prev => ({...prev, page: 1})); // Reset ke halaman 1 saat filter berubah
+              setPagination(prev => ({...prev, page: 1})); 
             }}
             className="w-full md:w-48 px-3 py-2.5 rounded-lg border border-[#071E3D]/20 text-[#071E3D] bg-[#FAFAFA] focus:bg-white focus:outline-none focus:border-[#CC6B27] focus:ring-2 focus:ring-[#CC6B27]/10 transition-all text-[13px] font-medium appearance-none cursor-pointer"
           >
@@ -500,7 +513,6 @@ const TempatUji = () => {
                     <td className="py-4 px-4">
                       <div className="flex justify-center gap-1">
                         
-                        {/* TOMBOL SEND EMAIL - Redup & Disabled jika sudah punya akun */}
                         <button 
                           onClick={() => handleSendEmail(item.id_tuk, !!item.penanggungJawab)} 
                           disabled={!!item.penanggungJawab}
