@@ -30,12 +30,11 @@ const PesertaJadwal = () => {
       const data = res.data.data || [];
       setPesertaList(data);
       
-      // CEK CONSOLE: Buka Inspect Element -> Console di browser untuk melihat struktur asli data dari backend
-      console.log("Data Peserta dari Backend:", data);
-      
       // Ambil info jadwal dari data pertama jika ada
-      if (data && data.length > 0) {
+      // Ini akan jadi "sumber kebenaran" (source of truth) untuk data Skema semua peserta
+      if (data && data.length > 0 && data[0].jadwal) {
         setJadwalInfo(data[0].jadwal);
+        console.log("Data Jadwal & Skema (Global):", data[0].jadwal);
       }
     } catch (error) {
       console.error("Gagal mengambil data peserta:", error);
@@ -55,13 +54,19 @@ const PesertaJadwal = () => {
     return userObj.ProfileAsesi || userObj.profileAsesi || userObj.profile_asesi;
   };
 
-  // Helper untuk membaca skema
+  // Helper untuk membaca skema dengan logika fallback ke jadwalInfo
   const getSkemaName = (jadwalObj) => {
-    if (!jadwalObj) return '-';
-    return jadwalObj.skema?.nama_skema || jadwalObj.Skema?.nama_skema || '-';
+    // Jika jadwal di baris ini kosong, gunakan jadwalInfo global (karena jadwalnya pasti sama)
+    const targetJadwal = jadwalObj || jadwalInfo;
+    if (!targetJadwal) return '-';
+    
+    // Cek berbagai kemungkinan format penamaan objek Skema dari backend
+    return targetJadwal.skema?.nama_skema || 
+           targetJadwal.Skema?.nama_skema || 
+           '-';
   };
 
-  // Filter pencarian yang sudah diperbaiki
+  // Filter pencarian
   const filteredData = pesertaList.filter(item => {
     const profile = getProfile(item.user);
     const nama = profile?.nama_lengkap || item.user?.username || item.user?.nama_lengkap || '';
@@ -101,7 +106,9 @@ const PesertaJadwal = () => {
         <div>
           <h1 className="text-2xl font-bold text-[#182D4A]">Data Peserta Jadwal</h1>
           <p className="text-gray-500 text-sm">
-            {jadwalInfo ? `Jadwal: ${jadwalInfo.nama_kegiatan} | Gel: ${jadwalInfo.gelombang}` : 'Mengelola asesi yang terdaftar di jadwal ini'}
+            {jadwalInfo 
+              ? `Jadwal: ${jadwalInfo.nama_kegiatan} | Skema: ${getSkemaName(jadwalInfo)}` 
+              : 'Mengelola asesi yang terdaftar di jadwal ini'}
           </p>
         </div>
       </div>
@@ -167,7 +174,9 @@ const PesertaJadwal = () => {
                       </td>
                       
                       {/* Kolom Skema */}
-                      <td className="p-4 text-gray-600">{namaSkema}</td>
+                      <td className="p-4 text-gray-600">
+                        <span className="line-clamp-2" title={namaSkema}>{namaSkema}</span>
+                      </td>
                       
                       <td className="p-4 font-medium text-[#182D4A]">{row.nomor_peserta || '-'}</td>
                       <td className="p-4">
@@ -241,7 +250,9 @@ const PesertaJadwal = () => {
                 <div className="grid grid-cols-2 gap-4">
                   <div className="bg-gray-50 p-3 rounded-lg border border-gray-100">
                     <p className="text-[11px] text-gray-500 uppercase font-bold tracking-wider mb-1">Skema</p>
-                    <p className="font-bold text-[#182D4A] text-[14px]">{getSkemaName(selectedPeserta.jadwal)}</p>
+                    <p className="font-bold text-[#182D4A] text-[14px] line-clamp-2" title={getSkemaName(selectedPeserta.jadwal)}>
+                      {getSkemaName(selectedPeserta.jadwal)}
+                    </p>
                   </div>
                   <div className="bg-gray-50 p-3 rounded-lg border border-gray-100">
                     <p className="text-[11px] text-gray-500 uppercase font-bold tracking-wider mb-1">Nomor Peserta</p>
