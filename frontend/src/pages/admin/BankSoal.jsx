@@ -1,11 +1,14 @@
 import React, { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import api from "../../services/api";
 import Swal from "sweetalert2";
-import { Database, Plus, Edit2, Trash2, X, Save, Loader2, Filter, Settings, FileText, List } from 'lucide-react';
+import { Database, Plus, Edit2, Trash2, X, Save, Loader2, Filter, Settings, FileText, List, ArrowLeft } from 'lucide-react';
 
 const BankSoal = () => {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const unitQuery = searchParams.get('unit'); // Tangkap parameter ?unit=ID dari URL
+
   const [soalList, setSoalList] = useState([]);
   const [unitList, setUnitList] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -21,8 +24,16 @@ const BankSoal = () => {
     status: "aktif",
   });
 
-  const [filterUnit, setFilterUnit] = useState("");
+  // Jika URL membawa unitQuery, jadikan nilai awal filter
+  const [filterUnit, setFilterUnit] = useState(unitQuery || "");
   const [filterJenis, setFilterJenis] = useState("");
+
+  // Update filter otomatis jika URL query berubah
+  useEffect(() => {
+    if (unitQuery) {
+      setFilterUnit(unitQuery);
+    }
+  }, [unitQuery]);
 
   useEffect(() => {
     fetchSoal();
@@ -58,6 +69,9 @@ const BankSoal = () => {
     return matchUnit && matchJenis;
   });
 
+  // Cari detail unit yang sedang aktif (jika masuk lewat mode khusus / ada unitQuery)
+  const activeUnitInfo = unitList.find(u => String(u.id_unit) === String(unitQuery));
+
   // --- HANDLERS ---
   const handleInputChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -66,7 +80,7 @@ const BankSoal = () => {
   const openModal = () => {
     setEditingId(null);
     setFormData({
-      id_unit: "",
+      id_unit: unitQuery || filterUnit || "", // Otomatis terisi unit yang sedang aktif
       jenis: "IA05_pg",
       pertanyaan: "",
       tingkat_kesulitan: "sedang",
@@ -178,24 +192,40 @@ const BankSoal = () => {
   return (
     <div className="p-6 md:p-8 bg-[#FAFAFA] min-h-screen flex flex-col gap-6">
       
-      {/* HEADER */}
-      <div>
-        <h2 className="text-[22px] font-bold text-[#071E3D] m-0 mb-1 flex items-center gap-2">
-          <Database className="text-[#CC6B27]" size={24}/>
-          Bank Soal Ujian
-        </h2>
-        <p className="text-[14px] text-[#182D4A] m-0">Pengelolaan bank soal untuk ujian tertulis dan lisan asesi.</p>
+      {/* HEADER DENGAN TOMBOL KEMBALI JIKA DIAKSES DARI UNIT KOMPETENSI */}
+      <div className="flex items-center gap-4">
+        {unitQuery && (
+          <button 
+            onClick={() => navigate('/admin/unit-kompetensi')} 
+            className="p-2.5 rounded-lg bg-white border border-[#071E3D]/20 text-[#182D4A] hover:text-[#CC6B27] hover:border-[#CC6B27]/30 transition-all shadow-sm"
+            title="Kembali ke Unit Kompetensi"
+          >
+            <ArrowLeft size={20} />
+          </button>
+        )}
+        <div>
+          <h2 className="text-[22px] font-bold text-[#071E3D] m-0 mb-1 flex items-center gap-2">
+            <Database className="text-[#CC6B27]" size={24}/>
+            Bank Soal Ujian
+          </h2>
+          <p className="text-[14px] text-[#182D4A] m-0">
+            {unitQuery && activeUnitInfo 
+              ? `Mengelola bank soal khusus untuk unit: ${activeUnitInfo.kode_unit}` 
+              : "Pengelolaan bank soal untuk ujian tertulis dan lisan asesi."}
+          </p>
+        </div>
       </div>
 
       {/* FILTER & ACTIONS */}
       <div className="bg-white border border-[#071E3D]/10 rounded-xl shadow-sm p-5 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         
         <div className="flex flex-col md:flex-row gap-3 w-full md:w-auto">
-          <div className="flex items-center gap-2 bg-[#FAFAFA] border border-[#071E3D]/20 px-3 py-2 rounded-lg">
-            <Filter size={16} className="text-[#CC6B27]" />
+          <div className={`flex items-center gap-2 border px-3 py-2 rounded-lg transition-colors ${unitQuery ? 'bg-gray-100 border-gray-200' : 'bg-[#FAFAFA] border-[#071E3D]/20'}`}>
+            <Filter size={16} className={unitQuery ? "text-gray-400" : "text-[#CC6B27]"} />
             <select 
-              className="bg-transparent text-[13px] font-medium text-[#071E3D] focus:outline-none w-40"
+              className={`bg-transparent text-[13px] font-medium focus:outline-none w-40 ${unitQuery ? 'text-gray-500 cursor-not-allowed' : 'text-[#071E3D]'}`}
               value={filterUnit}
+              disabled={!!unitQuery} // Kunci dropdown filter jika sedang berada dalam mode "Per Unit"
               onChange={(e) => setFilterUnit(e.target.value)}
             >
               <option value="">Semua Unit Kompetensi</option>
@@ -326,12 +356,19 @@ const BankSoal = () => {
               <form id="soalForm" onSubmit={handleSave} className="flex flex-col gap-4">
                 
                 <div>
-                  <label className="text-[13px] font-bold text-[#071E3D] mb-1.5 block">Pilih Unit Kompetensi</label>
+                  <label className="text-[13px] font-bold text-[#071E3D] mb-1.5 block">
+                    Pilih Unit Kompetensi {unitQuery && <span className="text-red-500 font-normal italic">(Terkunci)</span>}
+                  </label>
                   <select
                     name="id_unit"
                     value={formData.id_unit}
                     onChange={handleInputChange}
-                    className="w-full p-2.5 border border-[#071E3D]/20 rounded-lg text-[#071E3D] bg-[#FAFAFA] focus:bg-white focus:outline-none focus:border-[#CC6B27] focus:ring-2 focus:ring-[#CC6B27]/10 transition-all font-medium text-[13px]"
+                    disabled={!!unitQuery} // Input disable jika sedang mode spesifik per unit
+                    className={`w-full p-2.5 border border-[#071E3D]/20 rounded-lg font-medium text-[13px] transition-all ${
+                      unitQuery 
+                        ? 'bg-gray-100 text-gray-500 cursor-not-allowed border-gray-300' 
+                        : 'text-[#071E3D] bg-[#FAFAFA] focus:bg-white focus:outline-none focus:border-[#CC6B27] focus:ring-2 focus:ring-[#CC6B27]/10'
+                    }`}
                   >
                     <option value="">-- Silakan Pilih --</option>
                     {unitList.map((u) => (

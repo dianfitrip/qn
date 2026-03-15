@@ -28,8 +28,8 @@ const Sidebar = () => {
       const isPathActive = (pathsArray) => pathsArray.some(p => path.startsWith(p));
 
       newState.laporan = isPathActive(['/admin/laporan']);
-      // '/admin/bank-soal-pg' tetap dipertahankan di sini agar menu Standar Kompetensi 
-      // tetap terbuka & menyala (highlight) ketika user sedang mengelola opsi PG
+      // '/admin/bank-soal' & '/admin/bank-soal-pg' tetap dipertahankan di sini agar menu Standar Kompetensi 
+      // tetap terbuka & menyala (highlight) ketika user sedang mengelola soal dari halaman unit kompetensi
       newState.standar = isPathActive(['/admin/unit-kompetensi', '/admin/skkni', '/admin/bank-soal', '/admin/bank-soal-pg']);
       newState.asesi = isPathActive(['/admin/asesi', '/admin/verifikasi-pendaftaran', '/admin/asesi/belum-kompeten']);
       newState.asesor = isPathActive(['/admin/asesor']);
@@ -201,9 +201,6 @@ const Sidebar = () => {
             <button className={getSubItemClass(isActive('/admin/skkni'))} onClick={() => handleNav('/admin/skkni')}>
               <span className={`w-1.5 h-1.5 rounded-full mr-3 ${isActive('/admin/skkni') ? 'bg-[#CC6B27]' : 'bg-[#FAFAFA]/40'}`}></span>Data SKKNI
             </button>
-            <button className={getSubItemClass(isActive('/admin/bank-soal'))} onClick={() => handleNav('/admin/bank-soal')}>
-              <span className={`w-1.5 h-1.5 rounded-full mr-3 ${isActive('/admin/bank-soal') ? 'bg-[#CC6B27]' : 'bg-[#FAFAFA]/40'}`}></span>Bank Soal
-            </button>
           </div>
         )}
 
@@ -217,7 +214,7 @@ const Sidebar = () => {
         {/* OPERASIONAL */}
         <SectionLabel>Operasional</SectionLabel>
 
-        {/* MENU JADWAL UJI KOMPETENSI (TIDAK LAGI DROPDOWN) */}
+        {/* MENU JADWAL UJI KOMPETENSI */}
         <button className={getNavItemClass(isActive('/admin/jadwal/uji-kompetensi'))} onClick={() => handleNav('/admin/jadwal/uji-kompetensi')}>
           <div className="flex items-center flex-1">
             <FaCalendarAlt className="text-lg mr-3" />
