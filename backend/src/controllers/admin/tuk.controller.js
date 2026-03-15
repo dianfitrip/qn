@@ -62,10 +62,23 @@ exports.importTukExcel = async (req, res) => {
     for (const row of rows) {
       const t = await sequelize.transaction();
       try {
+        // 1. Buat Role
+        let role = await Role.findOne({ where: { role_name: "TUK" }, transaction: t });
+        if (!role) role = await Role.create({ role_name: "TUK" }, { transaction: t });
+
+        // 2. Buat Akun (Jika error karena email/kode duplikat, akan masuk ke catch dan rollback)
+        const { user, rawPassword } = await createUser({
+          username: row.kode_tuk,
+          email: row.email,
+          no_hp: row.telepon,
+          id_role: role.id_role
+        }, { transaction: t });
+
+        // 3. Simpan Tabel TUK
         await Tuk.create({
           kode_tuk: row.kode_tuk,
           nama_tuk: row.nama_tuk,
-          jenis_tuk: row.jenis_tuk,
+          jenis_tuk: row.jenis_tuk || "sewaktu",
           institusi_induk: row.institusi_induk,
           telepon: row.telepon,
           email: row.email,
@@ -78,24 +91,54 @@ exports.importTukExcel = async (req, res) => {
           no_lisensi: row.no_lisensi,
           masa_berlaku_lisensi: row.masa_berlaku_lisensi || null,
           status: "nonaktif",
-          id_penanggung_jawab: null
+          id_penanggung_jawab: user.id_user // Langsung ditautkan!
         }, { transaction: t });
 
-        await t.commit();
+        // 4. Simpan Profile TUK
+        await ProfileTuk.upsert({
+          id_user: user.id_user,
+          nama_lengkap: row.nama_tuk,
+          alamat: row.alamat,
+          provinsi: row.provinsi,
+          kota: row.kota,
+          kecamatan: row.kecamatan,
+          kelurahan: row.kelurahan,
+          kode_pos: row.kode_pos
+        }, { transaction: t });
+
+        await t.commit(); // Simpan permanen ke Database
+
+        // 5. Eksekusi Pengiriman Email & Notifikasi (Diluar transaksi agar jika gagal kirim, data tetap tersimpan)
+        let statusKirim = "terkirim";
+        try {
+          await sendAccountEmail(row.email, user.username, rawPassword);
+        } catch (emailErr) {
+          console.error(`Email gagal dikirim ke ${row.email}:`, emailErr.message);
+          statusKirim = "gagal";
+        }
+
+        await createNotifikasi({
+          channel: "email",
+          tujuan: row.email,
+          pesan: `Akun TUK berhasil dibuat melalui Import.\nUsername: ${row.kode_tuk}`,
+          status_kirim: statusKirim,
+          ref_type: "akun",
+          ref_id: user.id_user
+        });
+
         success++;
       } catch (err) {
         await t.rollback();
         failed++;
-        console.log(`Import gagal baris ${row.kode_tuk}:`, err.message);
+        console.log(`Import gagal pada baris kode ${row.kode_tuk}:`, err.message);
       }
     }
 
-    return response.success(res, `Import selesai. Berhasil: ${success}, Gagal: ${failed}`);
+    return response.success(res, `Import selesai. Berhasil masuk & terkirim email: ${success}, Gagal/Duplikat: ${failed}`);
   } catch (err) {
     return response.error(res, err.message);
   }
 };
-
 // ==============================================
 // FITUR BARU: GET ALL DENGAN FILTER STATUS
 // ==============================================

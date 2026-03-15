@@ -4,7 +4,7 @@ import api from "../../services/api";
 import { getProvinsi, getKota, getKecamatan, getKelurahan } from "../../services/wilayah.service";
 import { 
   Search, Plus, Eye, Edit2, Trash2, X, Save, Upload, FileSpreadsheet,
-  MapPin, User, Building2, Loader2, FileText, Home, Mail, Key
+  MapPin, User, Building2, Loader2, FileText, Home, Mail, Key, CheckCircle
 } from 'lucide-react';
 
 const TempatUji = () => {
@@ -14,11 +14,12 @@ const TempatUji = () => {
   
   // STATE FILTER & SEARCH
   const [searchTerm, setSearchTerm] = useState('');
-  const [filterStatus, setFilterStatus] = useState('');
+  const [filterStatus, setFilterStatus] = useState(''); 
   
   // Modal State
   const [showModal, setShowModal] = useState(false);
   const [showImportModal, setShowImportModal] = useState(false);
+  const [selectedImportFile, setSelectedImportFile] = useState(null); // Menampung file Excel yg dipilih
   const [isDetailMode, setIsDetailMode] = useState(false);
   const [isEditMode, setIsEditMode] = useState(false);
   const [currentId, setCurrentId] = useState(null);
@@ -68,7 +69,7 @@ const TempatUji = () => {
           page: pagination.page,
           limit: pagination.limit,
           search: searchTerm,
-          status: filterStatus
+          status: filterStatus 
         }
       });
 
@@ -345,7 +346,6 @@ const TempatUji = () => {
       setShowModal(false);
       fetchData();
     } catch (error) {
-      // Memunculkan pesan validasi duplikat dari backend
       Swal.fire({title: 'Gagal', text: error.response?.data?.message || 'Gagal menyimpan data', icon: 'error', confirmButtonColor: '#CC6B27'});
     }
   };
@@ -374,34 +374,48 @@ const TempatUji = () => {
   };
 
   // ==========================================
-  // FUNGSI IMPORT YANG SUDAH DIPERBAIKI (HEADER)
+  // FUNGSI IMPORT EXCEL DENGAN LOADING & STATE FILE
   // ==========================================
   const handleImportSubmit = async (e) => {
     e.preventDefault();
     
-    // Menangkap input file dengan cara yang lebih akurat
-    const fileInput = e.target.querySelector('input[type="file"]');
-    const file = fileInput?.files[0];
-    
-    if (!file) {
+    if (!selectedImportFile) {
         return Swal.fire({title: 'Peringatan', text: 'Pilih file excel terlebih dahulu', icon: 'warning', confirmButtonColor: '#CC6B27'});
     }
 
     const form = new FormData();
-    form.append('file', file); // Harus bernama 'file' sesuai di backend
+    form.append('file', selectedImportFile);
+
+    // Tampilkan animasi Loading karena pengiriman banyak email memakan waktu lama
+    Swal.fire({
+      title: 'Memproses Import...',
+      text: 'Sistem sedang membaca file, membuat akun, dan mengirimkan email. Harap jangan tutup halaman ini.',
+      allowOutsideClick: false,
+      didOpen: () => Swal.showLoading()
+    });
 
     try {
-      // Menambahkan Header 'multipart/form-data' sangat penting!
-      await api.post('/admin/import-tuk', form, {
-        headers: {
-            'Content-Type': 'multipart/form-data'
-        }
+      const response = await api.post('/admin/import-tuk', form, {
+        headers: { 'Content-Type': 'multipart/form-data' }
       });
-      Swal.fire({title: 'Sukses', text: 'Import berhasil diselesaikan!', icon: 'success', confirmButtonColor: '#CC6B27'});
+      
+      Swal.fire({
+        title: 'Import Selesai', 
+        text: response.data.message || 'Data berhasil diimport dan email telah dikirim!', 
+        icon: 'success', 
+        confirmButtonColor: '#CC6B27'
+      });
+
       setShowImportModal(false);
+      setSelectedImportFile(null); // Reset form
       fetchData();
     } catch (err) {
-      Swal.fire({title: 'Gagal Import', text: err.response?.data?.message || 'Gagal membaca atau memproses file Excel', icon: 'error', confirmButtonColor: '#CC6B27'});
+      Swal.fire({
+        title: 'Gagal Import', 
+        text: err.response?.data?.message || 'Gagal membaca atau memproses file Excel', 
+        icon: 'error', 
+        confirmButtonColor: '#CC6B27'
+      });
     }
   };
 
@@ -417,7 +431,10 @@ const TempatUji = () => {
         <div className="flex gap-3 w-full md:w-auto">
           <button 
             className="flex-1 md:flex-none px-4 py-2 bg-white border border-[#071E3D]/20 text-[#182D4A] rounded-lg hover:bg-[#E2E8F0] shadow-sm transition-all font-bold flex items-center justify-center gap-2 text-[13px]" 
-            onClick={() => setShowImportModal(true)}
+            onClick={() => {
+              setSelectedImportFile(null); // Reset setiap kali modal dibuka
+              setShowImportModal(true);
+            }}
           >
             <FileSpreadsheet size={18} /> Import
           </button>
@@ -435,7 +452,6 @@ const TempatUji = () => {
         
         {/* --- PENCARIAN & FILTER --- */}
         <div className="flex flex-col md:flex-row gap-3 w-full">
-          {/* Kolom Pencarian */}
           <div className="w-full md:w-80 relative group">
             <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#182D4A]/50 group-focus-within:text-[#CC6B27] transition-colors" />
             <input 
@@ -450,7 +466,6 @@ const TempatUji = () => {
             />
           </div>
 
-          {/* Dropdown Filter Status */}
           <select 
             value={filterStatus}
             onChange={(e) => {
@@ -464,7 +479,6 @@ const TempatUji = () => {
             <option value="nonaktif">Status: Nonaktif</option>
           </select>
         </div>
-        {/* ---------------------------- */}
 
         {/* Table */}
         <div className="overflow-x-auto rounded-lg border border-[#071E3D]/10">
@@ -702,7 +716,7 @@ const TempatUji = () => {
         </div>
       )}
 
-      {/* MODAL IMPORT */}
+      {/* --- MODAL IMPORT DENGAN FEEDBACK VISUAL NAMA FILE --- */}
       {showImportModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#071E3D]/40 backdrop-blur-sm p-4 animate-in fade-in duration-200">
           <div className="bg-white rounded-xl shadow-2xl w-full max-w-md overflow-hidden zoom-in-95">
@@ -712,12 +726,33 @@ const TempatUji = () => {
             </div>
             
             <form onSubmit={handleImportSubmit} className="p-6">
-              <div className="border-2 border-dashed border-[#071E3D]/30 rounded-xl p-8 text-center bg-[#FAFAFA] hover:bg-white transition-colors cursor-pointer relative">
-                <Upload className="mx-auto text-[#CC6B27] mb-3" size={40} />
-                <p className="text-[13px] font-bold text-[#071E3D] mb-1">Pilih atau letakkan file Excel di sini</p>
-                <p className="text-[12px] font-medium text-[#182D4A]/70">Format yang didukung: .xls, .xlsx</p>
-                <input type="file" accept=".xlsx, .xls" className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" required/>
+              <div className={`border-2 border-dashed rounded-xl p-8 text-center transition-colors cursor-pointer relative ${
+                selectedImportFile ? 'border-green-500/50 bg-green-50' : 'border-[#071E3D]/30 bg-[#FAFAFA] hover:bg-white'
+              }`}>
+                
+                {selectedImportFile ? (
+                  <>
+                    <CheckCircle className="mx-auto text-green-500 mb-3" size={40} />
+                    <p className="text-[14px] font-bold text-green-700 mb-1 truncate px-4">{selectedImportFile.name}</p>
+                    <p className="text-[12px] font-medium text-green-600/70">Klik untuk mengganti file</p>
+                  </>
+                ) : (
+                  <>
+                    <Upload className="mx-auto text-[#CC6B27] mb-3" size={40} />
+                    <p className="text-[13px] font-bold text-[#071E3D] mb-1">Pilih atau letakkan file Excel di sini</p>
+                    <p className="text-[12px] font-medium text-[#182D4A]/70">Format yang didukung: .xls, .xlsx</p>
+                  </>
+                )}
+
+                <input 
+                  type="file" 
+                  accept=".xlsx, .xls" 
+                  className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" 
+                  required
+                  onChange={(e) => setSelectedImportFile(e.target.files[0])} // Update state ketika file dipilih
+                />
               </div>
+              
               <div className="mt-6 flex justify-end gap-3">
                 <button type="button" className="px-5 py-2.5 rounded-lg font-bold border border-[#071E3D]/20 text-[#182D4A] bg-white hover:bg-[#E2E8F0] transition-colors text-[13px]" onClick={() => setShowImportModal(false)}>Batal</button>
                 <button type="submit" className="px-5 py-2.5 rounded-lg font-bold bg-[#CC6B27] text-white hover:bg-[#a8561f] shadow-sm hover:shadow-md transition-all text-[13px]">Upload File</button>
