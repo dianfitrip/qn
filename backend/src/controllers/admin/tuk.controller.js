@@ -7,97 +7,52 @@ const sequelize = require("../../config/database");
 const { Op } = require("sequelize");
 
 exports.createTuk = async (req, res) => {
-
   const t = await sequelize.transaction();
 
   try {
 
-    const {
-      kode_tuk,
-      nama_tuk,
-      jenis_tuk,
-      institusi_induk,
-      telepon,
-      email,
-      alamat,
-      provinsi,
-      kota,
-      kecamatan,
-      kelurahan,
-      kode_pos,
-      no_lisensi,
-      masa_berlaku_lisensi
-    } = req.body;
-
-    let role = await Role.findOne({
+    const role = await Role.findOne({
       where: { role_name: "TUK" },
       transaction: t
     });
 
-    if (!role) {
-      role = await Role.create(
-        { role_name: "TUK" },
-        { transaction: t }
-      );
-    }
+    const { user, rawPassword } = await createUser({
+      username: req.body.kode_tuk,
+      email: req.body.email,
+      no_hp: req.body.telepon,
+      id_role: role.id_role
+    }, { transaction: t });
 
-    const { user } = await createUser(
-      {
-        username: kode_tuk,
-        email,
-        no_hp: telepon,
-        id_role: role.id_role
-      },
-      { transaction: t }
-    );
+    const tuk = await Tuk.create({
+      kode_tuk: req.body.kode_tuk,
+      nama_tuk: req.body.nama_tuk,
+      jenis_tuk: req.body.jenis_tuk,
+      email: req.body.email,
+      telepon: req.body.telepon,
+      alamat: req.body.alamat,
+      provinsi: req.body.provinsi,
+      kota: req.body.kota,
+      status: "nonaktif",
+      id_penanggung_jawab: user.id_user
+    }, { transaction: t });
 
-    const tuk = await Tuk.create(
-      {
-        kode_tuk,
-        nama_tuk,
-        jenis_tuk,
-        institusi_induk,
-        telepon,
-        email,
-        alamat,
-        provinsi,
-        kota,
-        kecamatan,
-        kelurahan,
-        kode_pos,
-        no_lisensi,
-        masa_berlaku_lisensi,
-        status: "aktif",
-        id_penanggung_jawab: req.user.id_user
-      },
-      { transaction: t }
-    );
-
-    await ProfileTuk.create(
-      {
-        id_user: user.id_user,
-        nama_lengkap: nama_tuk,
-        alamat,
-        provinsi,
-        kota,
-        kecamatan,
-        kelurahan,
-        kode_pos
-      },
-      { transaction: t }
-    );
+    await ProfileTuk.create({
+      id_user: user.id_user,
+      nama_lengkap: req.body.nama_tuk,
+      alamat: req.body.alamat,
+      provinsi: req.body.provinsi,
+      kota: req.body.kota
+    }, { transaction: t });
 
     await t.commit();
 
-    return response.success(
-      res,
-      "TUK berhasil dibuat. Email akun belum dikirim."
-    );
+    return response.success(res, "TUK berhasil dibuat", tuk);
 
   } catch (err) {
 
     await t.rollback();
     return response.error(res, err.message);
+
   }
 };
 
@@ -163,7 +118,7 @@ exports.importTukExcel = async (req, res) => {
           no_lisensi: row.no_lisensi,
           masa_berlaku_lisensi: row.masa_berlaku_lisensi,
           status: "nonaktif",
-          id_penanggung_jawab: req.user.id_user
+          id_penanggung_jawab: user.id_user // <-- SUDAH DIPERBAIKI
         }, { transaction: t });
 
         await ProfileTuk.create({
@@ -180,9 +135,7 @@ exports.importTukExcel = async (req, res) => {
         await createNotifikasi({
           channel: "email",
           tujuan: row.email,
-          pesan: `Akun TUK berhasil dibuat.
-Username: ${row.kode_tuk}
-Password: ${rawPassword}`,
+          pesan: `Akun TUK berhasil dibuat.\nUsername: ${row.kode_tuk}\nPassword: ${rawPassword}`,
           status_kirim: "terkirim",
           ref_type: "akun",
           ref_id: user.id_user
