@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from "react";
 import api from "../../services/api";
 import Swal from "sweetalert2";
-import { FaPlus, FaSearch, FaEdit, FaTrash, FaEye, FaTimes, FaSave, FaFileAlt } from "react-icons/fa";
+import { FaPlus, FaSearch, FaEdit, FaTrash, FaEye, FaTimes, FaSave, FaFileAlt, FaSpinner } from "react-icons/fa";
 
 const Skkni = () => {
   // --- STATE ---
   const [dataList, setDataList] = useState([]);
+  const [filteredData, setFilteredData] = useState([]);
   const [loading, setLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
 
@@ -17,6 +18,9 @@ const Skkni = () => {
   // State Modal Detail
   const [showDetailModal, setShowDetailModal] = useState(false);
   const [selectedItem, setSelectedItem] = useState(null);
+
+  // State Preview Dokumen
+  const [showFullPdf, setShowFullPdf] = useState(false);
 
   // State Form Data (Sesuai Model Backend)
   const [formData, setFormData] = useState({
@@ -37,16 +41,28 @@ const Skkni = () => {
     fetchData();
   }, []);
 
+  // Filter Search
+  useEffect(() => {
+    if (!dataList) return;
+    const lowerTerm = searchTerm.toLowerCase();
+    const filtered = dataList.filter(item => {
+      const no = item.no_skkni?.toLowerCase() || '';
+      const judul = item.judul_skkni?.toLowerCase() || '';
+      return no.includes(lowerTerm) || judul.includes(lowerTerm);
+    });
+    setFilteredData(filtered);
+  }, [searchTerm, dataList]);
+
   // --- API FUNCTIONS ---
   const fetchData = async () => {
     setLoading(true);
     try {
       const response = await api.get("/admin/skkni");
-      // Urutkan manual berdasarkan ID descending (karena timestamps: false)
-      const sortedData = (response.data.data || []).sort((a, b) => b.id_skkni - a.id_skkni);
-      setDataList(sortedData);
-    } catch (err) {
-      console.error(err);
+      setDataList(response.data?.data || []);
+      setFilteredData(response.data?.data || []);
+    } catch (error) {
+      console.error(error);
+      Swal.fire("Error", "Gagal memuat data SKKNI", "error");
     } finally {
       setLoading(false);
     }
@@ -54,17 +70,20 @@ const Skkni = () => {
 
   // --- HANDLERS ---
   const handleInputChange = (e) => {
-    const { name, value } = e.target;
-    setFormData((prev) => ({ ...prev, [name]: value }));
+    setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
   const handleFileChange = (e) => {
     setDokumenFile(e.target.files[0]);
+    setShowFullPdf(false); // Reset preview view saat file baru dipilih
   };
 
-  const openCreateModal = () => {
+  const openModal = () => {
+    setShowModal(true);
     setIsEditing(false);
     setEditId(null);
+    setDokumenFile(null);
+    setShowFullPdf(false);
     setFormData({
       jenis_standar: "SKKNI",
       no_skkni: "",
@@ -74,13 +93,30 @@ const Skkni = () => {
       sub_sektor: "",
       penerbit: "",
     });
-    setDokumenFile(null);
-    setShowModal(true);
   };
 
-  const openEditModal = (item) => {
+  const closeModal = () => {
+    setShowModal(false);
+    setShowFullPdf(false);
+  };
+
+  const openDetailModal = (item) => {
+    setSelectedItem(item);
+    setShowDetailModal(true);
+    setShowFullPdf(false);
+  };
+
+  const closeDetailModal = () => {
+    setShowDetailModal(false);
+    setSelectedItem(null);
+    setShowFullPdf(false);
+  };
+
+  const handleEdit = (item) => {
     setIsEditing(true);
     setEditId(item.id_skkni);
+    setDokumenFile(null);
+    setShowFullPdf(false);
     setFormData({
       jenis_standar: item.jenis_standar || "SKKNI",
       no_skkni: item.no_skkni || "",
@@ -90,159 +126,148 @@ const Skkni = () => {
       sub_sektor: item.sub_sektor || "",
       penerbit: item.penerbit || "",
     });
-    setDokumenFile(null); 
-    setSelectedItem(item); 
     setShowModal(true);
   };
 
-  const openDetailModal = (item) => {
-    setSelectedItem(item);
-    setShowDetailModal(true);
+  // ==========================================
+  // --- BLOK FUNGSI VALIDASI ---
+  // ==========================================
+  const validateForm = () => {
+    const fieldsToCheck = [
+      { key: 'no_skkni', name: 'Nomor SKKNI' },
+      { key: 'judul_skkni', name: 'Judul SKKNI' },
+      { key: 'legalitas', name: 'Legalitas' },
+      { key: 'sektor', name: 'Sektor' },
+      { key: 'sub_sektor', name: 'Sub Sektor' },
+      { key: 'penerbit', name: 'Penerbit' },
+    ];
+
+    for (let field of fieldsToCheck) {
+      const value = String(formData[field.key] || "").trim();
+      if (value.length > 0 && value.length < 4) {
+        return `Inputan pada kolom "${field.name}" terlalu pendek ("${value}"). Minimal harus 4 karakter!`;
+      }
+    }
+    return null;
   };
 
-  // --- SUBMIT (CREATE / UPDATE) ---
-  const handleSubmit = async (e) => {
+  // ==========================================
+  // --- BLOK FUNGSI SIMPAN & KONFIRMASI ---
+  // ==========================================
+  const handleSave = async (e) => {
     e.preventDefault();
 
-    // 1. Validasi Input Wajib
-    if (!formData.no_skkni || !formData.judul_skkni) {
-      Swal.fire({
-        icon: "warning",
-        title: "Data Belum Lengkap",
-        text: "Pastikan No SKKNI dan Judul SKKNI telah diisi.",
-      });
-      return;
+    // 1. Validasi Input
+    const errorMsg = validateForm();
+    if (errorMsg) {
+      return Swal.fire("Validasi Gagal", errorMsg, "warning");
     }
 
-    // 2. Konfirmasi
+    // 2. Konfirmasi SweetAlert
     const confirmResult = await Swal.fire({
-      title: isEditing ? "Simpan Perubahan?" : "Tambah Data Baru?",
-      text: isEditing 
-        ? "Pastikan data yang diubah sudah benar." 
-        : "Apakah Anda yakin ingin menyimpan data ini?",
+      title: "Konfirmasi Simpan",
+      text: `Yakin ingin ${isEditing ? 'menyimpan perubahan' : 'menambahkan'} data SKKNI ini? Pastikan file dan data sudah benar.`,
       icon: "question",
       showCancelButton: true,
-      confirmButtonText: isEditing ? "Ya, Update" : "Ya, Simpan",
-      confirmButtonColor: "#CC6B27",
+      confirmButtonColor: "#CC6B27", 
       cancelButtonColor: "#182D4A",
-      cancelButtonText: "Batal",
+      confirmButtonText: "Ya, Simpan!",
+      cancelButtonText: "Batal"
     });
 
     if (!confirmResult.isConfirmed) return;
 
-    // 3. Prepare FormData
-    const payload = new FormData();
-    
-    // Append text fields
-    Object.keys(formData).forEach((key) => {
-      payload.append(key, formData[key]);
-    });
-
-    // Append File dengan nama field 'file_dokumen' (SESUAI BACKEND)
-    if (dokumenFile) {
-      payload.append("file_dokumen", dokumenFile);
-    }
-
+    setLoading(true);
     try {
-      Swal.fire({
-        title: "Sedang Memproses...",
-        allowOutsideClick: false,
-        didOpen: () => Swal.showLoading(),
+      const dataToSend = new FormData();
+      Object.keys(formData).forEach((key) => {
+        dataToSend.append(key, formData[key]);
       });
+      if (dokumenFile) {
+        dataToSend.append("dokumen_skkni", dokumenFile);
+      }
 
       if (isEditing) {
-        // Update
-        await api.put(`/admin/skkni/${editId}`, payload, {
+        await api.put(`/admin/skkni/${editId}`, dataToSend, {
           headers: { "Content-Type": "multipart/form-data" },
         });
-        Swal.fire("Berhasil!", "Data SKKNI berhasil diperbarui.", "success");
+        Swal.fire({ title: "Berhasil", text: "Data SKKNI diperbarui", icon: "success", timer: 1500 });
       } else {
-        // Create
-        await api.post("/admin/skkni", payload, {
+        await api.post("/admin/skkni", dataToSend, {
           headers: { "Content-Type": "multipart/form-data" },
         });
-        Swal.fire("Berhasil!", "Data SKKNI berhasil ditambahkan.", "success");
+        Swal.fire({ title: "Berhasil", text: "Data SKKNI ditambahkan", icon: "success", timer: 1500 });
       }
-
-      setShowModal(false);
+      closeModal();
       fetchData();
-
-    } catch (err) {
-      console.error(err);
-      Swal.fire({
-        icon: "error",
-        title: "Gagal",
-        text: err.response?.data?.message || "Terjadi kesalahan server.",
-      });
+    } catch (error) {
+      console.error(error);
+      Swal.fire("Gagal", "Terjadi kesalahan saat menyimpan data", "error");
+    } finally {
+      setLoading(false);
     }
   };
 
-  // --- DELETE ---
+  // ==========================================
+  // --- BLOK FUNGSI HAPUS & KONFIRMASI ---
+  // ==========================================
   const handleDelete = async (id) => {
-    const result = await Swal.fire({
-      title: "Apakah Anda Yakin?",
-      text: "Data yang dihapus tidak dapat dikembalikan!",
+    const confirmResult = await Swal.fire({
+      title: "Konfirmasi Hapus",
+      text: "Yakin ingin menghapus data SKKNI ini? Data yang terkait mungkin akan ikut terpengaruh!",
       icon: "warning",
       showCancelButton: true,
-      confirmButtonColor: "#ef4444",
+      confirmButtonColor: "#d33",
       cancelButtonColor: "#182D4A",
-      confirmButtonText: "Ya, Hapus!",
-      cancelButtonText: "Batal",
+      confirmButtonText: "Ya, Hapus Data!",
+      cancelButtonText: "Batal"
     });
 
-    if (result.isConfirmed) {
-      try {
-        Swal.fire({
-            title: "Menghapus...",
-            allowOutsideClick: false,
-            didOpen: () => Swal.showLoading() 
-        });
-        
-        await api.delete(`/admin/skkni/${id}`);
-        Swal.fire("Terhapus!", "Data SKKNI telah dihapus.", "success");
-        fetchData();
-      } catch (err) {
-        Swal.fire("Gagal", "Gagal menghapus data.", "error");
-      }
+    if (!confirmResult.isConfirmed) return;
+
+    try {
+      await api.delete(`/admin/skkni/${id}`);
+      Swal.fire({ title: "Terhapus!", text: "Data berhasil dihapus.", icon: "success", timer: 1500 });
+      fetchData();
+    } catch (error) {
+      console.error(error);
+      Swal.fire("Error", "Gagal menghapus data", "error");
     }
   };
-
-  // --- FILTERING ---
-  const filteredData = dataList.filter((item) =>
-    (item.judul_skkni || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
-    (item.no_skkni || "").toLowerCase().includes(searchTerm.toLowerCase())
-  );
 
   return (
     <div className="p-6 md:p-8 bg-[#FAFAFA] min-h-screen flex flex-col gap-6">
       
-      {/* HEADER PAGE */}
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-        <div>
-          <h2 className="text-[22px] font-bold text-[#071E3D] m-0 mb-1">Data SKKNI</h2>
-          <p className="text-[14px] text-[#182D4A] m-0">Kelola Standar Kompetensi Kerja Nasional Indonesia</p>
-        </div>
-        <button 
-          onClick={openCreateModal} 
-          className="px-4 py-2 bg-[#CC6B27] text-white rounded-lg hover:bg-[#a8561f] shadow-sm hover:shadow-md transition-all font-bold flex items-center gap-2 text-[13px]"
-        >
-          <FaPlus /> Tambah Data
-        </button>
+      {/* HEADER */}
+      <div>
+        <h2 className="text-[22px] font-bold text-[#071E3D] m-0 mb-1 flex items-center gap-2">
+          <FaFileAlt className="text-[#CC6B27]" size={22}/>
+          Data Standar / SKKNI
+        </h2>
+        <p className="text-[14px] text-[#182D4A] m-0">Kelola master data SKKNI dan dokumen pendukung.</p>
       </div>
 
       {/* CONTENT CARD */}
-      <div className="bg-white border border-[#071E3D]/10 rounded-xl shadow-sm p-6 flex flex-col gap-6">
+      <div className="bg-white border border-[#071E3D]/10 rounded-xl shadow-sm p-6">
         
-        {/* SEARCH BOX */}
-        <div className="w-full md:w-80 relative group">
-          <FaSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-[#182D4A]/50 group-focus-within:text-[#CC6B27] transition-colors" />
-          <input
-            type="text"
-            className="w-full pl-10 pr-4 py-2.5 rounded-lg border border-[#071E3D]/20 text-[#071E3D] bg-[#FAFAFA] focus:bg-white focus:outline-none focus:border-[#CC6B27] focus:ring-2 focus:ring-[#CC6B27]/10 transition-all text-[13px]"
-            placeholder="Cari Judul atau No SKKNI..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-          />
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
+          <div className="w-full md:w-80 relative group">
+            <FaSearch size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#182D4A]/50 group-focus-within:text-[#CC6B27] transition-colors" />
+            <input 
+              type="text" 
+              className="w-full pl-9 pr-4 py-2.5 rounded-lg border border-[#071E3D]/20 text-[#071E3D] bg-[#FAFAFA] focus:bg-white focus:outline-none focus:border-[#CC6B27] focus:ring-2 focus:ring-[#CC6B27]/10 transition-all text-[13px]" 
+              placeholder="Cari No atau Judul SKKNI..." 
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+            />
+          </div>
+
+          <button 
+            onClick={openModal} 
+            className="w-full md:w-auto px-5 py-2.5 rounded-lg font-bold bg-[#CC6B27] text-white hover:bg-[#a8561f] shadow-sm flex items-center justify-center gap-2 text-[13px] transition-all"
+          >
+            <FaPlus size={14} /> Tambah SKKNI
+          </button>
         </div>
 
         {/* TABLE */}
@@ -250,56 +275,46 @@ const Skkni = () => {
           <table className="w-full text-left border-collapse min-w-max bg-white">
             <thead>
               <tr>
-                <th className="py-3.5 px-4 bg-[#071E3D] text-[#FAFAFA] font-semibold text-[12px] uppercase tracking-wider border-b-4 border-[#CC6B27] w-[50px] text-center">No</th>
-                <th className="py-3.5 px-4 bg-[#071E3D] text-[#FAFAFA] font-semibold text-[12px] uppercase tracking-wider border-b-4 border-[#CC6B27] w-[180px]">Nomor SKKNI</th>
+                <th className="py-3.5 px-4 bg-[#071E3D] text-[#FAFAFA] font-semibold text-[12px] uppercase tracking-wider border-b-4 border-[#CC6B27] w-12 text-center">No</th>
+                <th className="py-3.5 px-4 bg-[#071E3D] text-[#FAFAFA] font-semibold text-[12px] uppercase tracking-wider border-b-4 border-[#CC6B27]">Nomor SKKNI</th>
                 <th className="py-3.5 px-4 bg-[#071E3D] text-[#FAFAFA] font-semibold text-[12px] uppercase tracking-wider border-b-4 border-[#CC6B27]">Judul SKKNI</th>
-                <th className="py-3.5 px-4 bg-[#071E3D] text-[#FAFAFA] font-semibold text-[12px] uppercase tracking-wider border-b-4 border-[#CC6B27]">Jenis</th>
-                <th className="py-3.5 px-4 bg-[#071E3D] text-[#FAFAFA] font-semibold text-[12px] uppercase tracking-wider border-b-4 border-[#CC6B27]">Sektor</th>
-                <th className="py-3.5 px-4 bg-[#071E3D] text-[#FAFAFA] font-semibold text-[12px] uppercase tracking-wider border-b-4 border-[#CC6B27] text-center w-[180px]">Aksi</th>
+                <th className="py-3.5 px-4 bg-[#071E3D] text-[#FAFAFA] font-semibold text-[12px] uppercase tracking-wider border-b-4 border-[#CC6B27] text-center">Dokumen</th>
+                <th className="py-3.5 px-4 bg-[#071E3D] text-[#FAFAFA] font-semibold text-[12px] uppercase tracking-wider border-b-4 border-[#CC6B27] text-center">Aksi</th>
               </tr>
             </thead>
             <tbody>
               {loading ? (
                 <tr>
-                  <td colSpan="6" className="text-center py-16">
-                    <p className="text-[#182D4A] font-medium text-[14px]">Loading data...</p>
+                  <td colSpan="5" className="py-16 text-center">
+                    <FaSpinner className="animate-spin mx-auto text-[#CC6B27] mb-3" size={30} />
+                    <p className="text-[#182D4A] font-medium text-[14px]">Memuat data...</p>
                   </td>
                 </tr>
               ) : filteredData.length > 0 ? (
                 filteredData.map((item, index) => (
-                  <tr key={item.id_skkni} className="border-b border-[#071E3D]/5 hover:bg-[#CC6B27]/5 transition-colors">
-                    <td className="py-4 px-4 text-[#071E3D] text-[13.5px] font-semibold text-center">{index + 1}</td>
-                    <td className="py-4 px-4 text-[#182D4A] text-[13px] font-mono font-semibold">{item.no_skkni}</td>
-                    <td className="py-4 px-4 text-[#071E3D] font-bold text-[13.5px] max-w-sm truncate" title={item.judul_skkni}>{item.judul_skkni}</td>
-                    <td className="py-4 px-4">
-                      <span className="inline-block px-3 py-1 text-[11px] rounded-full border border-[#071E3D]/20 bg-[#FAFAFA] font-bold text-[#182D4A]">
-                        {item.jenis_standar === 'SI' ? 'Standar Int.' : 
-                         item.jenis_standar === 'SKK' ? 'SKK Khusus' : item.jenis_standar}
-                      </span>
-                    </td>
-                    <td className="py-4 px-4 text-[#182D4A] text-[13.5px] font-medium">{item.sektor || "-"}</td>
+                  <tr key={item.id_skkni} className="border-b border-[#071E3D]/5 hover:bg-[#CC6B27]/5 transition-colors text-[13px]">
+                    <td className="py-4 px-4 text-center font-semibold text-[#071E3D]">{index + 1}</td>
+                    <td className="py-4 px-4 font-bold text-[#CC6B27] whitespace-nowrap">{item.no_skkni}</td>
+                    <td className="py-4 px-4 font-medium text-[#182D4A]">{item.judul_skkni}</td>
                     <td className="py-4 px-4 text-center">
-                      <div className="flex justify-center gap-1.5">
-                        <button 
-                          className="p-1.5 rounded-lg text-[#182D4A] hover:text-[#CC6B27] hover:bg-[#CC6B27]/10 transition-colors" 
-                          onClick={() => openDetailModal(item)}
-                          title="Lihat Detail"
-                        >
-                          <FaEye size={16} />
+                      {item.dokumen ? (
+                        <a href={`http://localhost:3000/uploads/${item.dokumen}`} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[#182D4A]/10 text-[#182D4A] hover:bg-[#CC6B27] hover:text-white transition-all text-[11px] font-bold">
+                          <FaFileAlt size={12}/> Lihat File
+                        </a>
+                      ) : (
+                        <span className="text-gray-400 italic text-[12px]">Tidak Ada</span>
+                      )}
+                    </td>
+                    <td className="py-4 px-4 text-center">
+                      <div className="flex items-center justify-center gap-2">
+                        <button onClick={() => openDetailModal(item)} className="p-2 rounded-lg text-[#071E3D] bg-slate-100 hover:bg-[#071E3D] hover:text-white transition-all shadow-sm" title="Lihat Detail">
+                          <FaEye size={14} />
                         </button>
-                        <button 
-                          className="p-1.5 rounded-lg text-[#182D4A] hover:text-[#071E3D] hover:bg-[#071E3D]/10 transition-colors" 
-                          onClick={() => openEditModal(item)}
-                          title="Edit Data"
-                        >
-                          <FaEdit size={16} />
+                        <button onClick={() => handleEdit(item)} className="p-2 rounded-lg text-[#CC6B27] bg-[#CC6B27]/10 hover:bg-[#CC6B27] hover:text-white transition-all shadow-sm" title="Edit Data">
+                          <FaEdit size={14} />
                         </button>
-                        <button 
-                          className="p-1.5 rounded-lg text-[#182D4A] hover:text-red-600 hover:bg-red-50 transition-colors" 
-                          onClick={() => handleDelete(item.id_skkni)}
-                          title="Hapus Data"
-                        >
-                          <FaTrash size={16} />
+                        <button onClick={() => handleDelete(item.id_skkni)} className="p-2 rounded-lg text-red-600 bg-red-50 hover:bg-red-600 hover:text-white transition-all shadow-sm border border-red-100 hover:border-transparent" title="Hapus Data">
+                          <FaTrash size={14} />
                         </button>
                       </div>
                     </td>
@@ -307,8 +322,11 @@ const Skkni = () => {
                 ))
               ) : (
                 <tr>
-                  <td colSpan="6" className="text-center py-16 text-[#182D4A]/50">
-                    Tidak ada data ditemukan.
+                  <td colSpan="5" className="py-16 text-center">
+                    <div className="flex flex-col items-center justify-center">
+                      <FaFileAlt size={48} className="text-[#071E3D]/20 mb-3"/>
+                      <p className="text-[#182D4A] font-medium text-[14px]">Belum ada data SKKNI tersedia.</p>
+                    </div>
                   </td>
                 </tr>
               )}
@@ -317,212 +335,215 @@ const Skkni = () => {
         </div>
       </div>
 
-      {/* --- MODAL FORM (CREATE / EDIT) --- */}
+      {/* MODAL FORM CREATE/EDIT */}
       {showModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#071E3D]/40 backdrop-blur-sm p-4 animate-in fade-in duration-200">
-          <div className="bg-white rounded-xl shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col overflow-hidden zoom-in-95">
-            <form onSubmit={handleSubmit} className="flex flex-col flex-1 overflow-hidden">
-              
-              <div className="px-6 py-4 border-b border-[#071E3D]/10 flex justify-between items-center bg-[#FAFAFA]">
-                <h3 className="text-[18px] font-bold text-[#071E3D] flex items-center gap-2 m-0">
-                  {isEditing ? <FaEdit className="text-[#CC6B27]"/> : <FaPlus className="text-[#CC6B27]"/>}
-                  {isEditing ? "Edit Data SKKNI" : "Tambah Data SKKNI"}
-                </h3>
-                <button type="button" className="text-[#182D4A] hover:text-[#CC6B27] hover:bg-[#CC6B27]/10 p-1.5 rounded-lg transition-colors" onClick={() => setShowModal(false)}>
-                  <FaTimes size={18} />
-                </button>
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-[#071E3D]/40 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="bg-white rounded-xl w-full max-w-2xl max-h-[90vh] overflow-hidden shadow-2xl flex flex-col animate-in zoom-in-95 duration-200">
+            
+            <div className="px-6 py-4 border-b border-[#071E3D]/10 bg-[#FAFAFA] flex justify-between items-center shrink-0">
+              <div className="flex items-center gap-2 text-[#182D4A]">
+                {isEditing ? <FaEdit size={18} className="text-[#CC6B27]" /> : <FaPlus size={18} className="text-[#CC6B27]" />}
+                <h3 className="font-bold text-[16px]">{isEditing ? "Edit Data SKKNI" : "Tambah SKKNI Baru"}</h3>
               </div>
-              
-              <div className="overflow-y-auto px-6 py-5 space-y-5">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                  
-                  <div className="flex flex-col gap-1.5">
-                    <label className="text-[13px] font-bold text-[#071E3D]">Jenis Standar <span className="text-red-500">*</span></label>
-                    <select 
-                      name="jenis_standar" 
-                      value={formData.jenis_standar} 
-                      onChange={handleInputChange} 
-                      className="w-full p-2.5 border border-[#071E3D]/20 rounded-lg text-[#071E3D] bg-[#FAFAFA] focus:bg-white focus:outline-none focus:border-[#CC6B27] focus:ring-2 focus:ring-[#CC6B27]/10 transition-all font-medium text-[13px]"
-                    >
-                      <option value="SKKNI">SKKNI</option>
-                      <option value="SKK">SKK Khusus</option>
-                      <option value="SI">Standar Internasional</option>
-                    </select>
-                  </div>
+              <button onClick={closeModal} className="text-[#182D4A]/50 hover:text-red-500 p-1 rounded-lg transition-colors">
+                <FaTimes size={18}/>
+              </button>
+            </div>
 
-                  <div className="flex flex-col gap-1.5">
-                    <label className="text-[13px] font-bold text-[#071E3D]">Nomor SKKNI <span className="text-red-500">*</span></label>
-                    <input
-                      type="text"
-                      name="no_skkni"
-                      value={formData.no_skkni}
-                      onChange={handleInputChange}
-                      className="w-full p-2.5 border border-[#071E3D]/20 rounded-lg text-[#071E3D] bg-[#FAFAFA] focus:bg-white focus:outline-none focus:border-[#CC6B27] focus:ring-2 focus:ring-[#CC6B27]/10 transition-all font-medium text-[13px] placeholder:text-[#182D4A]/40"
-                      placeholder="Contoh: 123 Tahun 2023"
-                      required
-                    />
-                  </div>
+            <div className="p-6 overflow-y-auto custom-scrollbar">
+              <form id="skkniForm" onSubmit={handleSave} className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                
+                <div className="md:col-span-2">
+                  <label className="text-[13px] font-bold text-[#071E3D] mb-1.5 block">Judul SKKNI</label>
+                  <input required type="text" name="judul_skkni" value={formData.judul_skkni} onChange={handleInputChange} className="w-full p-2.5 border border-[#071E3D]/20 rounded-lg text-[#071E3D] bg-[#FAFAFA] focus:bg-white focus:outline-none focus:border-[#CC6B27] focus:ring-2 focus:ring-[#CC6B27]/10 transition-all font-medium text-[13px]" placeholder="Masukkan Judul SKKNI"/>
+                </div>
 
-                  <div className="flex flex-col gap-1.5 md:col-span-2">
-                    <label className="text-[13px] font-bold text-[#071E3D]">Judul SKKNI <span className="text-red-500">*</span></label>
-                    <input
-                      type="text"
-                      name="judul_skkni"
-                      value={formData.judul_skkni}
-                      onChange={handleInputChange}
-                      className="w-full p-2.5 border border-[#071E3D]/20 rounded-lg text-[#071E3D] bg-[#FAFAFA] focus:bg-white focus:outline-none focus:border-[#CC6B27] focus:ring-2 focus:ring-[#CC6B27]/10 transition-all font-medium text-[13px] placeholder:text-[#182D4A]/40"
-                      placeholder="Masukkan Judul Lengkap"
-                      required
-                    />
-                  </div>
+                <div>
+                  <label className="text-[13px] font-bold text-[#071E3D] mb-1.5 block">Nomor SKKNI</label>
+                  <input required type="text" name="no_skkni" value={formData.no_skkni} onChange={handleInputChange} className="w-full p-2.5 border border-[#071E3D]/20 rounded-lg text-[#071E3D] bg-[#FAFAFA] focus:bg-white focus:outline-none focus:border-[#CC6B27] focus:ring-2 focus:ring-[#CC6B27]/10 transition-all font-medium text-[13px]" placeholder="Contoh: KEP/123/2023"/>
+                </div>
 
-                  <div className="flex flex-col gap-1.5">
-                    <label className="text-[13px] font-bold text-[#071E3D]">Sektor</label>
-                    <input
-                      type="text"
-                      name="sektor"
-                      value={formData.sektor}
-                      onChange={handleInputChange}
-                      className="w-full p-2.5 border border-[#071E3D]/20 rounded-lg text-[#071E3D] bg-[#FAFAFA] focus:bg-white focus:outline-none focus:border-[#CC6B27] focus:ring-2 focus:ring-[#CC6B27]/10 transition-all font-medium text-[13px] placeholder:text-[#182D4A]/40"
-                      placeholder="Contoh: Teknologi Informasi"
-                    />
-                  </div>
+                <div>
+                  <label className="text-[13px] font-bold text-[#071E3D] mb-1.5 block">Jenis Standar</label>
+                  <select name="jenis_standar" value={formData.jenis_standar} onChange={handleInputChange} className="w-full p-2.5 border border-[#071E3D]/20 rounded-lg text-[#071E3D] bg-[#FAFAFA] focus:bg-white focus:outline-none focus:border-[#CC6B27] focus:ring-2 focus:ring-[#CC6B27]/10 transition-all font-medium text-[13px]">
+                    <option value="SKKNI">SKKNI</option>
+                    <option value="Standar Internasional">Standar Internasional</option>
+                    <option value="Standar Khusus">Standar Khusus</option>
+                  </select>
+                </div>
 
-                  <div className="flex flex-col gap-1.5">
-                    <label className="text-[13px] font-bold text-[#071E3D]">Sub Sektor</label>
-                    <input
-                      type="text"
-                      name="sub_sektor"
-                      value={formData.sub_sektor}
-                      onChange={handleInputChange}
-                      className="w-full p-2.5 border border-[#071E3D]/20 rounded-lg text-[#071E3D] bg-[#FAFAFA] focus:bg-white focus:outline-none focus:border-[#CC6B27] focus:ring-2 focus:ring-[#CC6B27]/10 transition-all font-medium text-[13px] placeholder:text-[#182D4A]/40"
-                      placeholder="Contoh: Rekayasa Perangkat Lunak"
-                    />
-                  </div>
+                <div>
+                  <label className="text-[13px] font-bold text-[#071E3D] mb-1.5 block">Sektor</label>
+                  <input type="text" name="sektor" value={formData.sektor} onChange={handleInputChange} className="w-full p-2.5 border border-[#071E3D]/20 rounded-lg text-[#071E3D] bg-[#FAFAFA] focus:bg-white focus:outline-none focus:border-[#CC6B27] focus:ring-2 focus:ring-[#CC6B27]/10 transition-all font-medium text-[13px]"/>
+                </div>
 
-                  <div className="flex flex-col gap-1.5">
-                    <label className="text-[13px] font-bold text-[#071E3D]">Legalitas (Nomor Keputusan)</label>
-                    <input
-                      type="text"
-                      name="legalitas"
-                      value={formData.legalitas}
-                      onChange={handleInputChange}
-                      className="w-full p-2.5 border border-[#071E3D]/20 rounded-lg text-[#071E3D] bg-[#FAFAFA] focus:bg-white focus:outline-none focus:border-[#CC6B27] focus:ring-2 focus:ring-[#CC6B27]/10 transition-all font-medium text-[13px] placeholder:text-[#182D4A]/40"
-                      placeholder="Nomor Keputusan Menteri..."
-                    />
-                  </div>
+                <div>
+                  <label className="text-[13px] font-bold text-[#071E3D] mb-1.5 block">Sub Sektor</label>
+                  <input type="text" name="sub_sektor" value={formData.sub_sektor} onChange={handleInputChange} className="w-full p-2.5 border border-[#071E3D]/20 rounded-lg text-[#071E3D] bg-[#FAFAFA] focus:bg-white focus:outline-none focus:border-[#CC6B27] focus:ring-2 focus:ring-[#CC6B27]/10 transition-all font-medium text-[13px]"/>
+                </div>
 
-                  <div className="flex flex-col gap-1.5">
-                    <label className="text-[13px] font-bold text-[#071E3D]">Penerbit</label>
-                    <input
-                      type="text"
-                      name="penerbit"
-                      value={formData.penerbit}
-                      onChange={handleInputChange}
-                      className="w-full p-2.5 border border-[#071E3D]/20 rounded-lg text-[#071E3D] bg-[#FAFAFA] focus:bg-white focus:outline-none focus:border-[#CC6B27] focus:ring-2 focus:ring-[#CC6B27]/10 transition-all font-medium text-[13px] placeholder:text-[#182D4A]/40"
-                      placeholder="Contoh: Kemenaker"
-                    />
-                  </div>
+                <div>
+                  <label className="text-[13px] font-bold text-[#071E3D] mb-1.5 block">Legalitas</label>
+                  <input type="text" name="legalitas" value={formData.legalitas} onChange={handleInputChange} className="w-full p-2.5 border border-[#071E3D]/20 rounded-lg text-[#071E3D] bg-[#FAFAFA] focus:bg-white focus:outline-none focus:border-[#CC6B27] focus:ring-2 focus:ring-[#CC6B27]/10 transition-all font-medium text-[13px]"/>
+                </div>
 
-                  <div className="flex flex-col gap-1.5 md:col-span-2 pt-3 border-t border-dashed border-[#071E3D]/20">
-                    <label className="text-[13px] font-bold text-[#071E3D]">Upload Dokumen (PDF/Doc)</label>
-                    <input
-                      type="file"
-                      onChange={handleFileChange}
-                      className="block w-full text-[13px] text-[#182D4A] file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:font-bold file:bg-[#CC6B27]/10 file:text-[#CC6B27] hover:file:bg-[#CC6B27]/20 transition-all cursor-pointer bg-[#FAFAFA] border border-[#071E3D]/10 rounded-lg p-1"
-                      accept=".pdf,.doc,.docx"
-                    />
-                    {isEditing && selectedItem?.dokumen && (
-                      <p className="text-[12px] text-[#182D4A]/70 mt-1">
-                        File saat ini: <strong className="text-[#CC6B27]">{selectedItem.dokumen}</strong> <br/>
-                        (Biarkan kosong jika tidak ingin mengubah file)
-                      </p>
+                <div>
+                  <label className="text-[13px] font-bold text-[#071E3D] mb-1.5 block">Penerbit</label>
+                  <input type="text" name="penerbit" value={formData.penerbit} onChange={handleInputChange} className="w-full p-2.5 border border-[#071E3D]/20 rounded-lg text-[#071E3D] bg-[#FAFAFA] focus:bg-white focus:outline-none focus:border-[#CC6B27] focus:ring-2 focus:ring-[#CC6B27]/10 transition-all font-medium text-[13px]"/>
+                </div>
+
+                <div className="md:col-span-2">
+                  <label className="text-[13px] font-bold text-[#071E3D] mb-1.5 block">Upload Dokumen Pendukung (PDF)</label>
+                  <input type="file" accept=".pdf" onChange={handleFileChange} className="w-full p-2 border border-[#071E3D]/20 rounded-lg text-[#071E3D] bg-white focus:outline-none text-[13px] file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-[12px] file:font-semibold file:bg-[#CC6B27]/10 file:text-[#CC6B27] hover:file:bg-[#CC6B27]/20 transition-all"/>
+                </div>
+
+                {/* BLOK PREVIEW FILE BARU (HANYA MUNCUL JIKA ADA FILE DIPILIH) */}
+                {dokumenFile && (
+                  <div className="mt-4 md:col-span-2">
+                    <label className="text-[13px] font-bold text-[#071E3D] mb-2 block">Preview Dokumen yang Akan Diunggah:</label>
+                    <div className={`relative border border-[#071E3D]/20 rounded-lg bg-gray-50 ${!showFullPdf ? 'max-h-[400px] overflow-hidden' : ''}`}>
+                      <iframe 
+                        src={URL.createObjectURL(dokumenFile) + "#toolbar=0"} 
+                        className="w-full h-[800px] rounded-lg" 
+                        title="Preview PDF"
+                      />
+                      {!showFullPdf && (
+                        <div className="absolute bottom-0 left-0 right-0 h-40 bg-gradient-to-t from-white via-white/80 to-transparent flex items-end justify-center pb-4">
+                          <button 
+                            type="button" 
+                            onClick={() => setShowFullPdf(true)} 
+                            className="bg-[#CC6B27] text-white px-5 py-2.5 rounded-full font-bold shadow-lg hover:bg-[#a8561f] hover:-translate-y-1 transition-all text-[13px] z-10"
+                          >
+                            📄 Tampilkan Dokumen Selengkapnya
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                    {showFullPdf && (
+                      <div className="flex justify-end mt-2">
+                        <button type="button" onClick={() => setShowFullPdf(false)} className="text-[#CC6B27] text-[12px] font-bold hover:underline">
+                          Sembunyikan Sebagian ⮝
+                        </button>
+                      </div>
                     )}
                   </div>
-                </div>
-              </div>
+                )}
 
-              <div className="mt-auto pt-4 border-t border-[#071E3D]/10 bg-[#FAFAFA] flex justify-end gap-3 px-6 pb-4">
-                <button type="button" className="px-5 py-2.5 rounded-lg font-bold border border-[#071E3D]/20 text-[#182D4A] bg-white hover:bg-[#E2E8F0] transition-colors text-[13px]" onClick={() => setShowModal(false)}>
-                  Batal
-                </button>
-                <button type="submit" className="px-5 py-2.5 rounded-lg font-bold bg-[#CC6B27] text-white hover:bg-[#a8561f] shadow-sm hover:shadow-md transition-all flex items-center gap-2 text-[13px]">
-                  <FaSave /> {isEditing ? "Update Data" : "Simpan Data"}
-                </button>
-              </div>
-            </form>
+              </form>
+            </div>
+
+            <div className="p-4 border-t border-[#071E3D]/10 bg-[#FAFAFA] flex justify-end gap-3 shrink-0">
+              <button type="button" onClick={closeModal} className="px-5 py-2 rounded-lg font-bold border border-[#071E3D]/20 text-[#182D4A] bg-white hover:bg-[#E2E8F0] transition-colors text-[13px]">Batal</button>
+              <button type="submit" form="skkniForm" disabled={loading} className="px-5 py-2 rounded-lg font-bold bg-[#CC6B27] text-white hover:bg-[#a8561f] shadow-sm flex items-center gap-2 text-[13px] disabled:opacity-70 transition-colors">
+                {loading ? <FaSpinner className="animate-spin" /> : <FaSave />} 
+                {isEditing ? "Simpan Perubahan" : "Simpan Data"}
+              </button>
+            </div>
+
           </div>
         </div>
       )}
 
-      {/* --- MODAL DETAIL --- */}
+      {/* MODAL DETAIL */}
       {showDetailModal && selectedItem && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#071E3D]/40 backdrop-blur-sm p-4 animate-in fade-in duration-200">
-          <div className="bg-white rounded-xl shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col overflow-hidden zoom-in-95">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-[#071E3D]/40 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="bg-white rounded-xl shadow-2xl w-full max-w-3xl max-h-[90vh] flex flex-col overflow-hidden animate-in zoom-in-95 duration-200">
             
-            <div className="px-6 py-4 border-b border-[#071E3D]/10 flex justify-between items-center bg-[#FAFAFA]">
-              <h3 className="text-[18px] font-bold text-[#071E3D] flex items-center gap-2 m-0">
-                <FaEye className="text-[#CC6B27]"/> Detail Data SKKNI
+            <div className="px-6 py-4 border-b border-[#071E3D]/10 flex justify-between items-center bg-[#FAFAFA] shrink-0">
+              <h3 className="text-[18px] font-bold text-[#071E3D] flex items-center m-0">
+                <FaFileAlt className="mr-2 text-[#CC6B27]"/> Detail Data SKKNI
               </h3>
-              <button className="text-[#182D4A] hover:text-[#CC6B27] hover:bg-[#CC6B27]/10 p-1.5 rounded-lg transition-colors" onClick={() => setShowDetailModal(false)}>
-                <FaTimes size={18} />
+              <button onClick={closeDetailModal} className="text-[#182D4A] hover:text-red-500 p-1.5 rounded-lg transition-colors">
+                <FaTimes size={18}/>
               </button>
             </div>
             
-            <div className="overflow-y-auto px-6 py-5">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                <div className="flex flex-col gap-1">
-                    <label className="text-[#182D4A]/70 text-[11px] uppercase font-bold tracking-wider">Jenis Standar</label>
-                    <p className="font-semibold text-[#071E3D] mt-0.5 m-0 text-[13.5px]">{selectedItem.jenis_standar}</p>
-                </div>
-                <div className="flex flex-col gap-1">
-                    <label className="text-[#182D4A]/70 text-[11px] uppercase font-bold tracking-wider">Nomor SKKNI</label>
-                    <p className="font-semibold text-[#071E3D] mt-0.5 m-0 text-[13.5px]">{selectedItem.no_skkni}</p>
-                </div>
-                <div className="flex flex-col gap-1 md:col-span-2">
+            <div className="p-6 overflow-y-auto custom-scrollbar">
+              <div className="bg-[#FAFAFA] p-5 rounded-lg border border-[#071E3D]/10">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-[13px]">
+                  <div>
                     <label className="text-[#182D4A]/70 text-[11px] uppercase font-bold tracking-wider">Judul SKKNI</label>
-                    <p className="font-bold text-[#071E3D] mt-0.5 m-0 text-[14px] leading-relaxed">{selectedItem.judul_skkni}</p>
-                </div>
-                <div className="flex flex-col gap-1">
-                    <label className="text-[#182D4A]/70 text-[11px] uppercase font-bold tracking-wider">Sektor</label>
-                    <p className="font-semibold text-[#071E3D] mt-0.5 m-0 text-[13.5px]">{selectedItem.sektor || "-"}</p>
-                </div>
-                <div className="flex flex-col gap-1">
-                    <label className="text-[#182D4A]/70 text-[11px] uppercase font-bold tracking-wider">Sub Sektor</label>
-                    <p className="font-semibold text-[#071E3D] mt-0.5 m-0 text-[13.5px]">{selectedItem.sub_sektor || "-"}</p>
-                </div>
-                <div className="flex flex-col gap-1">
+                    <p className="font-semibold text-[#071E3D] mt-0.5 m-0">{selectedItem.judul_skkni}</p>
+                  </div>
+                  <div>
+                    <label className="text-[#182D4A]/70 text-[11px] uppercase font-bold tracking-wider">Nomor SKKNI</label>
+                    <p className="font-bold text-[#CC6B27] mt-0.5 m-0 bg-[#CC6B27]/10 w-fit px-2 py-0.5 rounded">{selectedItem.no_skkni}</p>
+                  </div>
+                  <div>
+                    <label className="text-[#182D4A]/70 text-[11px] uppercase font-bold tracking-wider">Jenis Standar</label>
+                    <p className="font-semibold text-[#071E3D] mt-0.5 m-0">{selectedItem.jenis_standar}</p>
+                  </div>
+                  <div>
                     <label className="text-[#182D4A]/70 text-[11px] uppercase font-bold tracking-wider">Legalitas</label>
-                    <p className="font-semibold text-[#071E3D] mt-0.5 m-0 text-[13.5px]">{selectedItem.legalitas || "-"}</p>
-                </div>
-                <div className="flex flex-col gap-1">
+                    <p className="font-semibold text-[#071E3D] mt-0.5 m-0">{selectedItem.legalitas || "-"}</p>
+                  </div>
+                  <div>
+                    <label className="text-[#182D4A]/70 text-[11px] uppercase font-bold tracking-wider">Sektor / Sub Sektor</label>
+                    <p className="font-semibold text-[#071E3D] mt-0.5 m-0">{selectedItem.sektor || "-"} / {selectedItem.sub_sektor || "-"}</p>
+                  </div>
+                  <div>
                     <label className="text-[#182D4A]/70 text-[11px] uppercase font-bold tracking-wider">Penerbit</label>
-                    <p className="font-semibold text-[#071E3D] mt-0.5 m-0 text-[13.5px]">{selectedItem.penerbit || "-"}</p>
+                    <p className="font-semibold text-[#071E3D] mt-0.5 m-0">{selectedItem.penerbit || "-"}</p>
+                  </div>
                 </div>
-                <div className="flex flex-col gap-1 md:col-span-2 mt-2 pt-4 border-t border-[#071E3D]/10">
-                    <label className="text-[#182D4A]/70 text-[11px] uppercase font-bold tracking-wider">Dokumen Lampiran</label>
-                    {selectedItem.dokumen ? (
-                        <div className="flex items-center gap-2 mt-1.5 text-[13px] bg-[#FAFAFA] px-3 py-2 border border-[#071E3D]/10 rounded-lg w-fit font-medium">
-                            <FaFileAlt className="text-[#CC6B27]" size={16}/>
-                            <a href={`http://localhost:3000/uploads/${selectedItem.dokumen}`} target="_blank" rel="noreferrer" className="text-[#CC6B27] hover:text-[#071E3D] transition-colors">
-                              {selectedItem.dokumen}
-                            </a>
+
+                {/* BLOK PREVIEW DOKUMEN DI MODAL DETAIL */}
+                <div className="md:col-span-2 mt-6 pt-4 border-t border-[#071E3D]/10">
+                  <label className="text-[13px] font-bold text-[#071E3D] mb-2 block flex items-center gap-2">
+                    <FaFileAlt className="text-[#CC6B27]" /> Isi Dokumen Lampiran
+                  </label>
+                  
+                  {selectedItem.dokumen ? (
+                    <div className={`relative mt-2 border border-[#071E3D]/20 rounded-lg bg-gray-50 shadow-inner ${!showFullPdf ? 'max-h-[500px] overflow-hidden' : ''}`}>
+                      <iframe 
+                        src={`http://localhost:3000/uploads/${selectedItem.dokumen}#toolbar=0`} 
+                        className="w-full h-[800px] rounded-lg" 
+                        title="Detail PDF"
+                      />
+                      {!showFullPdf && (
+                        <div className="absolute bottom-0 left-0 right-0 h-40 bg-gradient-to-t from-white via-white/90 to-transparent flex items-end justify-center pb-5">
+                          <button 
+                            type="button" 
+                            onClick={() => setShowFullPdf(true)} 
+                            className="bg-[#071E3D] text-white px-6 py-2.5 rounded-full font-bold shadow-xl border-2 border-white hover:bg-[#182D4A] hover:scale-105 transition-all text-[13px] z-10"
+                          >
+                            Buka Dokumen Penuh
+                          </button>
                         </div>
-                    ) : (
-                        <p className="text-[#182D4A]/50 italic text-[13px] mt-1">Tidak ada dokumen diupload.</p>
-                    )}
+                      )}
+                    </div>
+                  ) : (
+                    <p className="text-[#182D4A]/50 italic text-[13px] mt-1">Tidak ada dokumen yang diunggah.</p>
+                  )}
+
+                  {selectedItem.dokumen && showFullPdf && (
+                    <div className="flex justify-end mt-2">
+                      <button type="button" onClick={() => setShowFullPdf(false)} className="text-[#182D4A] text-[12px] font-bold hover:text-[#CC6B27] transition-colors">
+                        Perkecil Tampilan ⮝
+                      </button>
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
 
-            <div className="mt-auto pt-4 border-t border-[#071E3D]/10 bg-[#FAFAFA] flex justify-end gap-3 px-6 pb-4">
-                <button className="px-5 py-2.5 rounded-lg font-bold border border-[#071E3D]/20 text-[#182D4A] bg-white hover:bg-[#E2E8F0] transition-colors text-[13px]" onClick={() => setShowDetailModal(false)}>
-                    Tutup
+            <div className="p-4 border-t border-[#071E3D]/10 bg-[#FAFAFA] flex justify-end shrink-0">
+                <button onClick={closeDetailModal} className="px-6 py-2 rounded-lg font-bold border border-[#071E3D]/20 text-[#182D4A] bg-white hover:bg-[#E2E8F0] transition-colors text-[13px]">
+                  Tutup
                 </button>
             </div>
+
           </div>
         </div>
       )}
+
+      {/* Style CSS untuk Scrollbar Modal */}
+      <style dangerouslySetInnerHTML={{__html: `
+        .custom-scrollbar::-webkit-scrollbar { width: 6px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #CC6B27; border-radius: 10px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #a8561f; }
+      `}} />
 
     </div>
   );

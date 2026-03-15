@@ -15,7 +15,16 @@ app.use(
 );
 app.use(
   helmet({
-    crossOriginResourcePolicy: { policy: "cross-origin" }
+    // Konfigurasi asli milik Anda (membiarkan resource diakses cross-origin)
+    crossOriginResourcePolicy: { policy: "cross-origin" },
+    
+    // Tambahan untuk mengizinkan iframe (preview dokumen) dari frontend React
+    contentSecurityPolicy: {
+      directives: {
+        ...helmet.contentSecurityPolicy.getDefaultDirectives(),
+        "frame-ancestors": ["'self'", "http://localhost:5173"], 
+      },
+    },
   })
 );
 
