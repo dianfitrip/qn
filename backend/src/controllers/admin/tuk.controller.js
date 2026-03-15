@@ -72,9 +72,20 @@ exports.createTuk = async (req, res) => {
 
   } catch (err) {
     await t.rollback();
-    console.error("=============== ERROR CREATE TUK ===============");
-    console.error(err); 
-    console.error("================================================");
+    
+    // --- PENANGANAN ERROR DUPLIKAT YANG LEBIH JELAS UNTUK FRONTEND ---
+    if (err.name === 'SequelizeUniqueConstraintError') {
+      const field = err.errors[0].path; // Mengecek kolom apa yang duplikat
+      
+      if (field === 'email') {
+        return response.error(res, "Gagal! Email tersebut sudah terdaftar. Silakan gunakan email yang berbeda.", 400);
+      } else if (field === 'kode_tuk' || field === 'username') {
+        return response.error(res, "Gagal! Kode TUK tersebut sudah pernah didaftarkan. Silakan gunakan kode lain.", 400);
+      } else {
+        return response.error(res, `Gagal! Data ${field} sudah digunakan.`, 400);
+      }
+    }
+
     return response.error(res, err.message);
   }
 };
@@ -228,6 +239,11 @@ exports.update = async (req, res) => {
 
     return response.success(res, "TUK berhasil diperbarui", tuk);
   } catch (err) {
+    if (err.name === 'SequelizeUniqueConstraintError') {
+      const field = err.errors[0].path;
+      if (field === 'kode_tuk') return response.error(res, "Kode TUK tersebut sudah dipakai TUK lain.", 400);
+      if (field === 'email') return response.error(res, "Email tersebut sudah dipakai TUK lain.", 400);
+    }
     return response.error(res, err.message);
   }
 };
@@ -311,7 +327,7 @@ exports.resetPassword = async (req, res) => {
 };
 
 // ==============================================
-// FITUR BARU: HANYA GENERATE AKUN TUK
+// FITUR BARU: GENERATE AKUN TUK
 // ==============================================
 exports.generateAccount = async (req, res) => {
   const t = await sequelize.transaction();
@@ -325,17 +341,14 @@ exports.generateAccount = async (req, res) => {
       return response.error(res, "TUK tidak ditemukan", 404);
     }
 
-    // Jika akun sudah ada, kembalikan ID usernya saja
     if (tuk.penanggungJawab) {
       await t.rollback();
       return response.success(res, "Akun sudah ada", { id_user: tuk.penanggungJawab.id_user });
     }
 
-    // Buat role jika belum ada
     let role = await Role.findOne({ where: { role_name: "TUK" }, transaction: t });
     if (!role) role = await Role.create({ role_name: "TUK" }, { transaction: t });
 
-    // Buat user baru
     const newUserInfo = await createUser({
       username: tuk.kode_tuk,
       email: tuk.email,
@@ -345,10 +358,8 @@ exports.generateAccount = async (req, res) => {
 
     const user = newUserInfo.user;
 
-    // Tautkan id user baru ke tabel TUK
     await tuk.update({ id_penanggung_jawab: user.id_user }, { transaction: t });
 
-    // Buat Profil TUK
     await ProfileTuk.upsert({
       id_user: user.id_user,
       nama_lengkap: tuk.nama_tuk,
@@ -361,12 +372,21 @@ exports.generateAccount = async (req, res) => {
     }, { transaction: t });
 
     await t.commit();
-    
-    // Kembalikan id_user yang baru dibuat ke frontend
     return response.success(res, "Akun berhasil digenerate", { id_user: user.id_user });
 
   } catch (err) {
     await t.rollback();
+    
+    // --- PENANGANAN ERROR DUPLIKAT (GENERATE ACCOUNT) ---
+    if (err.name === 'SequelizeUniqueConstraintError') {
+      const field = err.errors[0].path;
+      if (field === 'email') {
+        return response.error(res, "Gagal generate akun! Email yang tersimpan di TUK ini sudah digunakan akun lain. Silakan edit email TUK terlebih dahulu.", 400);
+      } else if (field === 'kode_tuk' || field === 'username') {
+        return response.error(res, "Gagal generate akun! Kode TUK ini bentrok dengan username lain.", 400);
+      }
+    }
+    
     return response.error(res, err.message);
   }
 };
